@@ -431,3 +431,32 @@ h1 {
     color: white;
   }
 }
+
+.nameplate {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.quality-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.12rem 0.35rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  text-transform: capitalize;
+  opacity: 0.9;
+}
+
+.quality-good {
+  color: #a7d7b5;
+}
+
+.quality-constrained {
+  color: #e5c989;
+}
+
+.quality-poor,
+.quality-reconnecting {
+  color: #f0a6a6;
+}
