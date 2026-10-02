@@ -1,0 +1,16 @@
+[package]
+name = "verge"
+version = "0.1.0"
+description = "Peer-to-peer conferencing for the modern web and desktop"
+authors = ["Verge contributors"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.7.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.0", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
