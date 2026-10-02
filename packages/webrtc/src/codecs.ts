@@ -1,4 +1,8 @@
-type CodecCapability = NonNullable<\n  ReturnType<typeof RTCRtpSender.getCapabilities>\n>["codecs"][number];\n\nconst preferredVideoMimeTypes = [
+type CodecCapability = NonNullable<
+  ReturnType<typeof RTCRtpSender.getCapabilities>
+>["codecs"][number];
+
+const preferredVideoMimeTypes = [
   "video/AV1",
   "video/VP9",
   "video/H265",
