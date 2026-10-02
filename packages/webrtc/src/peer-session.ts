@@ -6,6 +6,10 @@ import type {
   SessionDescription
 } from "@verge/protocol";
 import { applyCodecPreferences } from "./codecs";
+import {
+  sampleConnectionQuality,
+  type ConnectionQualitySnapshot
+} from "./quality";
 
 const FILE_CHUNK_SIZE = 64 * 1024;
 const FILE_HIGH_WATER_MARK = 4 * 1024 * 1024;
@@ -16,6 +20,7 @@ export interface PeerSessionEvents {
   onChatMessage(peer: PeerSummary, message: ChatMessage): void;
   onFile(peer: PeerSummary, file: ReceivedFile): void;
   onStateChange?(peer: PeerSummary, state: RTCPeerConnectionState): void;
+  onQualityChange?(peer: PeerSummary, quality: ConnectionQualitySnapshot): void;
 }
 
 export interface PeerSessionOptions extends PeerSessionEvents {
@@ -76,6 +81,7 @@ export class PeerSession {
   #sendSignal: PeerSessionOptions["sendSignal"];
   #pendingCandidates: IceCandidate[] = [];
   #chatChannel: RTCDataChannel | undefined;
+  #qualityTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(options: PeerSessionOptions) {
     this.peer = options.peer;
@@ -105,6 +111,7 @@ export class PeerSession {
         this.peer,
         this.connection.connectionState
       );
+      void this.#sampleQuality();
     };
 
     this.connection.ondatachannel = ({ channel }) => {
@@ -120,6 +127,10 @@ export class PeerSession {
         this.connection.createDataChannel("chat", { ordered: true })
       );
     }
+
+    this.#qualityTimer = setInterval(() => {
+      void this.#sampleQuality();
+    }, 3_000);
   }
 
   async startOffer(): Promise<void> {
@@ -227,8 +238,19 @@ export class PeerSession {
   }
 
   close(): void {
+    if (this.#qualityTimer) clearInterval(this.#qualityTimer);
     this.#chatChannel?.close();
     this.connection.close();
+  }
+
+  async #sampleQuality(): Promise<void> {
+    if (this.connection.connectionState === "closed") return;
+    try {
+      const quality = await sampleConnectionQuality(this.connection);
+      this.#events.onQualityChange?.(this.peer, quality);
+    } catch {
+      // Stats are diagnostic and must never interrupt the call.
+    }
   }
 
   #bindChatChannel(channel: RTCDataChannel): void {

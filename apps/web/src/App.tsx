@@ -20,7 +20,10 @@ import type {
   PeerSummary,
   ReceivedFile
 } from "@verge/protocol";
-import { supportedVideoMimeTypes } from "@verge/webrtc";
+import {
+  supportedVideoMimeTypes,
+  type ConnectionQualitySnapshot
+} from "@verge/webrtc";
 
 interface RemotePeer {
   peer: PeerSummary;
@@ -82,6 +85,9 @@ export function App() {
   const [audioMode, setAudioMode] = createSignal<AudioMode>("speech");
   const [localStream, setLocalStream] = createSignal<MediaStream>();
   const [remotePeers, setRemotePeers] = createSignal<RemotePeer[]>([]);
+  const [peerQuality, setPeerQuality] = createSignal<
+    Record<string, ConnectionQualitySnapshot>
+  >({});
   const [messages, setMessages] = createSignal<DisplayMessage[]>([]);
   const [downloads, setDownloads] = createSignal<Download[]>([]);
   const [messageText, setMessageText] = createSignal("");
@@ -149,10 +155,21 @@ export function App() {
           history.replaceState(null, "", url);
         },
         onPeerStream: upsertPeer,
-        onPeerLeft: (peerId) =>
+        onPeerLeft: (peerId) => {
           setRemotePeers((current) =>
             current.filter((item) => item.peer.id !== peerId)
-          ),
+          );
+          setPeerQuality((current) => {
+            const next = { ...current };
+            delete next[peerId];
+            return next;
+          });
+        },
+        onPeerQuality: (peer, quality) =>
+          setPeerQuality((current) => ({
+            ...current,
+            [peer.id]: quality
+          })),
         onChatMessage: (peer, message) =>
           setMessages((current) => [
             ...current,
@@ -196,6 +213,7 @@ export function App() {
     if (stream) stopStream(stream);
     setLocalStream(undefined);
     setRemotePeers([]);
+    setPeerQuality({});
     setConnected(false);
     setScreenSharing(false);
     setBlurEnabled(false);
@@ -401,7 +419,31 @@ export function App() {
                         autoplay
                         playsinline
                       />
-                      <span class="nameplate">{item.peer.displayName}</span>
+                      <span class="nameplate">
+                        <span>{item.peer.displayName}</span>
+                        <Show when={peerQuality()[item.peer.id]}>
+                          {(quality) => (
+                            <span
+                              class={`quality-badge quality-${quality().level}`}
+                              title={[
+                                quality().rttMs === undefined
+                                  ? undefined
+                                  : `RTT ${Math.round(quality().rttMs ?? 0)} ms`,
+                                quality().packetLossPercent === undefined
+                                  ? undefined
+                                  : `loss ${quality().packetLossPercent?.toFixed(1)}%`,
+                                quality().jitterMs === undefined
+                                  ? undefined
+                                  : `jitter ${Math.round(quality().jitterMs ?? 0)} ms`
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            >
+                              {quality().level}
+                            </span>
+                          )}
+                        </Show>
+                      </span>
                     </article>
                   )}
                 </For>

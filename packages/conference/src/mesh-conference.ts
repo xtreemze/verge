@@ -6,7 +6,10 @@ import type {
   ServerMessage,
   SessionDescription
 } from "@verge/protocol";
-import { PeerSession } from "@verge/webrtc";
+import {
+  PeerSession,
+  type ConnectionQualitySnapshot
+} from "@verge/webrtc";
 import { SignalingClient } from "./signaling";
 
 export interface MeshConferenceEvents {
@@ -15,6 +18,7 @@ export interface MeshConferenceEvents {
   onPeerLeft?(peerId: string): void;
   onChatMessage(peer: PeerSummary, message: ChatMessage): void;
   onFile(peer: PeerSummary, file: ReceivedFile): void;
+  onPeerQuality?(peer: PeerSummary, quality: ConnectionQualitySnapshot): void;
   onError?(message: string): void;
 }
 
@@ -131,7 +135,9 @@ export class MeshConference {
       onChatMessage: (remotePeer, message) =>
         this.#options.onChatMessage(remotePeer, message),
       onFile: (remotePeer, file) =>
-        this.#options.onFile(remotePeer, file)
+        this.#options.onFile(remotePeer, file),
+      onQualityChange: (remotePeer, quality) =>
+        this.#options.onPeerQuality?.(remotePeer, quality)
     });
 
     this.#sessions.set(peer.id, session);
