@@ -6,6 +6,7 @@ import {
   type ServerMessage
 } from "@verge/protocol";
 import { WebSocket, WebSocketServer } from "ws";
+import { consumeFixedWindow } from "./rate-limit.js";
 
 interface ClientContext {
   id: string;
@@ -31,6 +32,7 @@ const sweepIntervalMs = Number(
 
 const rooms = new Map<string, Map<string, WebSocket>>();
 const clients = new WeakMap<WebSocket, ClientContext>();
+const connections = new Set<WebSocket>();
 
 const server = new WebSocketServer({
   port,
@@ -123,16 +125,6 @@ function forwardSignal(
   });
 }
 
-function consumeRateBudget(context: ClientContext, now: number): boolean {
-  if (now - context.windowStartedAt >= rateWindowMs) {
-    context.windowStartedAt = now;
-    context.messagesInWindow = 0;
-  }
-
-  context.messagesInWindow += 1;
-  return context.messagesInWindow <= maxMessagesPerWindow;
-}
-
 server.on("connection", (socket) => {
   const now = Date.now();
   const context: ClientContext = {
@@ -142,12 +134,20 @@ server.on("connection", (socket) => {
     lastActivityAt: now
   };
   clients.set(socket, context);
+  connections.add(socket);
 
   socket.on("message", (data, isBinary) => {
     const messageTime = Date.now();
     context.lastActivityAt = messageTime;
 
-    if (!consumeRateBudget(context, messageTime)) {
+    if (
+      !consumeFixedWindow(
+        context,
+        messageTime,
+        rateWindowMs,
+        maxMessagesPerWindow
+      )
+    ) {
       send(socket, { type: "error", message: "Signaling rate limit exceeded." });
       socket.close(1008, "Rate limit exceeded");
       return;
@@ -185,17 +185,18 @@ server.on("connection", (socket) => {
     }
   });
 
-  socket.on("close", () => leaveRoom(socket));
+  socket.on("close", () => {
+    connections.delete(socket);
+    leaveRoom(socket);
+  });
 });
 
 const sweepTimer = setInterval(() => {
   const cutoff = Date.now() - idleTimeoutMs;
-  for (const room of rooms.values()) {
-    for (const socket of room.values()) {
-      const context = clients.get(socket);
-      if (context && context.lastActivityAt < cutoff) {
-        socket.close(1001, "Idle timeout");
-      }
+  for (const socket of connections) {
+    const context = clients.get(socket);
+    if (context && context.lastActivityAt < cutoff) {
+      socket.close(1001, "Idle timeout");
     }
   }
 }, sweepIntervalMs);
