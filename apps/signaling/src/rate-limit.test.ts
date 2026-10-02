@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consumeFixedWindow } from "./rate-limit";
+import { consumeFixedWindow } from "./rate-limit.ts";
 
 describe("consumeFixedWindow", () => {
   it("allows messages up to the configured budget", () => {
