@@ -21,6 +21,7 @@ import type {
   ReceivedFile
 } from "@verge/protocol";
 import { supportedVideoMimeTypes } from "@verge/webrtc";
+import { loadIceServers } from "./ice-config";
 
 interface RemotePeer {
   peer: PeerSummary;
@@ -54,16 +55,6 @@ function signalingUrl(): string {
   }
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${location.hostname}:8787`;
-}
-
-function configuredIceServers(): RTCIceServer[] | undefined {
-  const raw = import.meta.env.VITE_ICE_SERVERS_JSON;
-  if (!raw) return undefined;
-  try {
-    return JSON.parse(raw) as RTCIceServer[];
-  } catch {
-    return undefined;
-  }
 }
 
 function attachVideo(
@@ -134,7 +125,7 @@ export function App() {
         cameraTrack ? supportsNativeBackgroundBlur(cameraTrack) : false
       );
 
-      const iceServers = configuredIceServers();
+      const iceServers = await loadIceServers();
       conference = new MeshConference({
         signalingUrl: signalingUrl(),
         roomId: roomId(),
