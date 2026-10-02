@@ -1,0 +1,12 @@
+{
+  "name": "@verge/conference",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@verge/protocol": "workspace:*",
+    "@verge/webrtc": "workspace:*"
+  },
+  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit" }
+}
