@@ -6,7 +6,7 @@ import {
   type ServerMessage
 } from "@verge/protocol";
 import { WebSocket, WebSocketServer } from "ws";
-import { consumeFixedWindow } from "./rate-limit.js";
+import { consumeFixedWindow } from "./rate-limit.ts";
 
 interface ClientContext {
   id: string;
