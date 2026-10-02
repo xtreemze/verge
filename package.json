@@ -1,0 +1,19 @@
+{
+  "name": "verge",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@12.8.0",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @verge/signaling --filter @verge/web dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @verge/web test:e2e",
+    "desktop": "pnpm --filter @verge/desktop tauri dev"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
