@@ -1,4 +1,4 @@
-const preferredVideoMimeTypes = [
+type CodecCapability = NonNullable<\n  ReturnType<typeof RTCRtpSender.getCapabilities>\n>["codecs"][number];\n\nconst preferredVideoMimeTypes = [
   "video/AV1",
   "video/VP9",
   "video/H265",
@@ -15,15 +15,15 @@ function rank(mimeType: string, preferred: readonly string[]): number {
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
-export function getSupportedVideoCodecs(): RTCRtpCodecCapability[] {
+export function getSupportedVideoCodecs(): CodecCapability[] {
   return RTCRtpSender.getCapabilities("video")?.codecs ?? [];
 }
 
-export function getSupportedAudioCodecs(): RTCRtpCodecCapability[] {
+export function getSupportedAudioCodecs(): CodecCapability[] {
   return RTCRtpSender.getCapabilities("audio")?.codecs ?? [];
 }
 
-export function getPreferredVideoCodecs(): RTCRtpCodecCapability[] {
+export function getPreferredVideoCodecs(): CodecCapability[] {
   const codecs = getSupportedVideoCodecs();
   const primary = codecs
     .filter((codec) => !/\/(rtx|red|ulpfec)$/i.test(codec.mimeType))
@@ -38,7 +38,7 @@ export function getPreferredVideoCodecs(): RTCRtpCodecCapability[] {
   return [...primary, ...repair];
 }
 
-export function getPreferredAudioCodecs(): RTCRtpCodecCapability[] {
+export function getPreferredAudioCodecs(): CodecCapability[] {
   return getSupportedAudioCodecs().toSorted(
     (left, right) =>
       rank(left.mimeType, preferredAudioMimeTypes) -
