@@ -58,7 +58,7 @@ function leaveRoom(socket: WebSocket): void {
   room?.delete(context.id);
   if (room?.size === 0) rooms.delete(roomId);
 
-  context.roomId = undefined;
+  delete context.roomId;
   broadcast(roomId, { type: "peer-left", peerId: context.id });
 }
 
