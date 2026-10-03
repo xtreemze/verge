@@ -217,6 +217,9 @@ h1 {
 
 .nameplate {
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   left: 0.7rem;
   bottom: 0.7rem;
   padding: 0.35rem 0.55rem;
@@ -430,4 +433,28 @@ h1 {
     background: #202124;
     color: white;
   }
+}
+
+
+.quality-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.12rem 0.35rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  text-transform: capitalize;
+  opacity: 0.9;
+}
+
+.quality-good {
+  color: #a7d7b5;
+}
+
+.quality-constrained {
+  color: #e5c989;
+}
+
+.quality-poor,
+.quality-reconnecting {
+  color: #f0a6a6;
 }

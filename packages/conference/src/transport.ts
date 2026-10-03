@@ -3,6 +3,7 @@ import type {
   PeerSummary,
   ReceivedFile
 } from "@verge/protocol";
+import type { ConnectionQualitySnapshot } from "@verge/webrtc";
 
 export type ConferenceTopology = "mesh" | "sfu";
 
@@ -21,6 +22,10 @@ export interface ConferenceTransportEvents {
   onPeerLeft?(peerId: string): void;
   onChatMessage(peer: PeerSummary, message: ChatMessage): void;
   onFile(peer: PeerSummary, file: ReceivedFile): void;
+  onPeerQuality?(
+    peer: PeerSummary,
+    quality: ConnectionQualitySnapshot
+  ): void;
   onError?(message: string): void;
 }
 

@@ -140,7 +140,9 @@ export class MeshConference implements ConferenceTransport {
       onChatMessage: (remotePeer, message) =>
         this.#options.onChatMessage(remotePeer, message),
       onFile: (remotePeer, file) =>
-        this.#options.onFile(remotePeer, file)
+        this.#options.onFile(remotePeer, file),
+      onQualityChange: (remotePeer, quality) =>
+        this.#options.onPeerQuality?.(remotePeer, quality)
     });
 
     this.#sessions.set(peer.id, session);
