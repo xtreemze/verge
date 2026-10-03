@@ -246,6 +246,22 @@ h1 {
   border-color: #607ba8;
 }
 
+.share-mode {
+  display: grid;
+  grid-template-columns: auto minmax(9rem, 12rem);
+  align-items: center;
+  gap: 0.45rem;
+  color: #8e949f;
+  font-size: 0.72rem;
+}
+
+.share-mode select {
+  width: auto;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 999px;
+}
+
 .diagnostics {
   align-self: center;
   color: #8e949f;

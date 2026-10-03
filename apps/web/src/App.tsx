@@ -13,7 +13,8 @@ import {
   setTrackEnabled,
   stopStream,
   supportsNativeBackgroundBlur,
-  type AudioMode
+  type AudioMode,
+  type ScreenShareMode
 } from "@verge/media";
 import type {
   ChatMessage,
@@ -91,6 +92,8 @@ export function App() {
   const [micEnabled, setMicEnabled] = createSignal(true);
   const [cameraEnabled, setCameraEnabled] = createSignal(true);
   const [screenSharing, setScreenSharing] = createSignal(false);
+  const [screenShareMode, setScreenShareMode] =
+    createSignal<ScreenShareMode>("detail");
   const [blurEnabled, setBlurEnabled] = createSignal(false);
   const [blurAvailable, setBlurAvailable] = createSignal(false);
 
@@ -246,7 +249,7 @@ export function App() {
 
     if (!conference) return;
     try {
-      const stream = await acquireDisplayMedia();
+      const stream = await acquireDisplayMedia({ mode: screenShareMode() });
       const track = stream.getVideoTracks()[0];
       if (!track) {
         stopStream(stream);
@@ -426,11 +429,34 @@ export function App() {
                 >
                   {cameraEnabled() ? "Camera off" : "Camera on"}
                 </button>
+                <label class="share-mode">
+                  <span>Share quality</span>
+                  <select
+                    aria-label="Screen share quality"
+                    value={screenShareMode()}
+                    disabled={screenSharing()}
+                    onChange={(event) =>
+                      setScreenShareMode(
+                        event.currentTarget.value as ScreenShareMode
+                      )
+                    }
+                  >
+                    <option value="detail">Text / UI · detail</option>
+                    <option value="motion">Video / motion</option>
+                  </select>
+                </label>
                 <button
                   classList={{ active: screenSharing() }}
                   onClick={() => void toggleScreenShare()}
+                  title={
+                    screenShareMode() === "detail"
+                      ? "Share at a lower frame rate with detail-oriented encoding hints"
+                      : "Share with a higher frame-rate motion-oriented capture policy"
+                  }
                 >
-                  {screenSharing() ? "Stop sharing" : "Share screen"}
+                  {screenSharing()
+                    ? `Stop sharing · ${screenShareMode()}`
+                    : "Share screen"}
                 </button>
                 <button
                   disabled={!blurAvailable()}
