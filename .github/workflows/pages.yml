@@ -1,0 +1,47 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Typecheck, build, and upload Astro site
+        uses: withastro/action@v6
+        with:
+          path: ./apps/site
+          node-version: 24
+          package-manager: pnpm@12.8.0
+          build-cmd: pnpm run typecheck && pnpm run build
+        env:
+          SITE_URL: https://xtreemze.github.io
+          BASE_PATH: /verge
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

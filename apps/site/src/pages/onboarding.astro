@@ -1,0 +1,527 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
+---
+
+<BaseLayout
+  title="Get ready for Verge"
+  description="Check browser capabilities, prepare a Verge room code, and verify camera and microphone access before joining a call."
+>
+  <div
+    class="onboarding-shell"
+    data-onboarding
+    data-app-url={appUrl}
+    data-repo-url="https://github.com/xtreemze/verge#development"
+  >
+    <div class="onboarding-main">
+      <header class="onboarding-hero">
+        <p class="eyebrow">Three checks · no account</p>
+        <h1>Get ready for Verge.</h1>
+        <p>
+          Confirm that this browser has the WebRTC primitives Verge
+          needs, prepare a room code, and test camera and microphone
+          access. The device test is local to this page and stops when
+          you leave it.
+        </p>
+      </header>
+
+      <noscript>
+        <p class="onboarding-card">
+          JavaScript is required for browser capability and device
+          checks. You can still run Verge from the repository.
+        </p>
+      </noscript>
+
+      <div class="onboarding-steps">
+        <section class="onboarding-card" aria-labelledby="browser-title">
+          <div class="step-label"><span>1</span> Browser readiness</div>
+          <h2 id="browser-title">Check the platform surface.</h2>
+          <p>
+            Verge relies on secure-context browser APIs for WebRTC,
+            camera and microphone capture, screen sharing, and
+            file-integrity hashing.
+          </p>
+
+          <ul class="capability-list" aria-live="polite">
+            <li class="capability" id="cap-secure">
+              <strong>Secure context</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+            <li class="capability" id="cap-webrtc">
+              <strong>WebRTC</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+            <li class="capability" id="cap-user-media">
+              <strong>Camera + microphone API</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+            <li class="capability" id="cap-display">
+              <strong>Display capture API</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+            <li class="capability" id="cap-crypto">
+              <strong>SHA-256 support</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+            <li class="capability" id="cap-data">
+              <strong>WebRTC data channels</strong>
+              <span class="capability-state">Checking</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="onboarding-card" aria-labelledby="room-title">
+          <div class="step-label"><span>2</span> Room</div>
+          <h2 id="room-title">Choose a room code.</h2>
+          <p>
+            Room identifiers are routing metadata, not passwords. Use
+            an unguessable code and share it only with the people you
+            intend to invite.
+          </p>
+
+          <div class="field">
+            <label for="room-id">Room code</label>
+            <div class="input-row">
+              <input
+                id="room-id"
+                name="room"
+                type="text"
+                minlength="1"
+                maxlength="64"
+                pattern="[A-Za-z0-9_-]+"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="room-note"
+              />
+              <button type="button" id="generate-room">
+                Generate
+              </button>
+            </div>
+            <span class="field-note" id="room-note" aria-live="polite">
+              Letters, numbers, underscores, and hyphens; up to 64
+              characters.
+            </span>
+          </div>
+
+          <div class="room-handoff">
+            <span class="field-note">Prepared room</span><br />
+            <strong class="room-code" id="room-output">—</strong>
+            <div class="handoff-actions">
+              <button type="button" id="copy-room">
+                Copy room code
+              </button>
+            </div>
+            <p class="handoff-note" id="copy-status" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="onboarding-card" aria-labelledby="devices-title">
+          <div class="step-label"><span>3</span> Devices + handoff</div>
+          <h2 id="devices-title">Verify capture before the call.</h2>
+          <p>
+            The test requests a camera and speech-oriented microphone
+            stream. Verge itself exposes device selection, background
+            blur when available, and an original-audio mode.
+          </p>
+
+          <div class="device-actions">
+            <button class="button primary" type="button" id="test-devices">
+              Test camera + microphone
+            </button>
+            <button type="button" id="stop-devices" disabled>
+              Stop test
+            </button>
+          </div>
+
+          <p class="permission-note">
+            Your browser controls the permission prompt. This page
+            does not upload or record the preview.
+          </p>
+
+          <div class="preview-frame">
+            <video
+              class="device-preview"
+              id="device-preview"
+              autoplay
+              muted
+              playsinline
+              hidden
+            ></video>
+          </div>
+
+          <p class="device-status" id="device-status" aria-live="polite">
+            Device test has not run yet.
+          </p>
+
+          <div class="room-handoff">
+            <h3>Continue to Verge</h3>
+            <p class="handoff-note">
+              Verge asks for your display name in its own lobby. The
+              handoff from this page only carries the room code.
+            </p>
+            <div class="handoff-actions">
+              <a
+                class="button primary"
+                id="launch-verge"
+                href="#"
+                hidden
+              >
+                Open Verge
+              </a>
+              <a
+                class="button primary"
+                id="open-development"
+                href="https://github.com/xtreemze/verge#development"
+              >
+                Run Verge locally
+              </a>
+              <a
+                class="button ghost"
+                href="https://github.com/xtreemze/verge/tree/main/docs"
+              >
+                Read architecture
+              </a>
+            </div>
+            <p class="handoff-note" id="handoff-status">
+              This GitHub Pages site is static. A hosted conference
+              endpoint can be supplied at build time with
+              PUBLIC_VERGE_APP_URL; otherwise use the repository
+              development setup.
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <aside class="readiness-summary" aria-label="Onboarding progress">
+      <h2>Readiness</h2>
+      <ol class="progress-list">
+        <li id="progress-browser">
+          <span class="progress-dot"></span>
+          Browser
+        </li>
+        <li id="progress-room">
+          <span class="progress-dot"></span>
+          Room
+        </li>
+        <li id="progress-devices">
+          <span class="progress-dot"></span>
+          Devices
+        </li>
+      </ol>
+      <p class="summary-note">
+        Device access is optional for reading the site. Verge will
+        request the permissions again when you actually join a room.
+      </p>
+    </aside>
+  </div>
+
+  <script>
+    const root = document.querySelector("[data-onboarding]");
+
+    if (root instanceof HTMLElement) {
+      const capabilityIds = [
+        "cap-secure",
+        "cap-webrtc",
+        "cap-user-media",
+        "cap-display",
+        "cap-crypto",
+        "cap-data"
+      ];
+
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function setCapability(id, supported) {
+        const item = byId(id);
+        if (!(item instanceof HTMLElement)) return;
+
+        item.dataset.state = supported ? "pass" : "fail";
+        const state = item.querySelector(".capability-state");
+        if (state) {
+          state.textContent = supported ? "Ready" : "Unavailable";
+        }
+      }
+
+      const mediaDevices = navigator.mediaDevices;
+      const webrtcReady =
+        typeof window.RTCPeerConnection === "function";
+
+      setCapability("cap-secure", window.isSecureContext);
+      setCapability("cap-webrtc", webrtcReady);
+      setCapability(
+        "cap-user-media",
+        typeof mediaDevices?.getUserMedia === "function"
+      );
+      setCapability(
+        "cap-display",
+        typeof mediaDevices?.getDisplayMedia === "function"
+      );
+      setCapability(
+        "cap-crypto",
+        typeof crypto?.subtle?.digest === "function"
+      );
+      setCapability(
+        "cap-data",
+        webrtcReady &&
+          "createDataChannel" in RTCPeerConnection.prototype
+      );
+
+      const browserReady = capabilityIds.every((id) => {
+        const item = byId(id);
+        return item instanceof HTMLElement &&
+          item.dataset.state === "pass";
+      });
+
+      const progressBrowser = byId("progress-browser");
+      if (progressBrowser instanceof HTMLElement && browserReady) {
+        progressBrowser.dataset.state = "pass";
+      }
+
+      const roomInput = byId("room-id");
+      const roomOutput = byId("room-output");
+      const roomNote = byId("room-note");
+      const generateRoom = byId("generate-room");
+      const copyRoom = byId("copy-room");
+      const copyStatus = byId("copy-status");
+      const progressRoom = byId("progress-room");
+      const launch = byId("launch-verge");
+      const openDevelopment = byId("open-development");
+      const handoffStatus = byId("handoff-status");
+
+      const roomPattern = /^[A-Za-z0-9_-]{1,64}$/;
+
+      function randomRoom() {
+        if (typeof crypto.randomUUID === "function") {
+          return crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+        }
+
+        const bytes = new Uint8Array(9);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes, (value) =>
+          value.toString(16).padStart(2, "0")
+        ).join("").slice(0, 12);
+      }
+
+      function updateRoom() {
+        if (!(roomInput instanceof HTMLInputElement)) return;
+
+        const value = roomInput.value.trim();
+        const valid = roomPattern.test(value);
+
+        if (roomOutput) {
+          roomOutput.textContent = valid ? value : "—";
+        }
+
+        if (roomNote instanceof HTMLElement) {
+          roomNote.dataset.state =
+            value.length > 0 && !valid ? "error" : "";
+          roomNote.textContent = valid
+            ? "Room code is ready."
+            : value.length > 0
+              ? "Use only letters, numbers, underscores, and hyphens."
+              : "Letters, numbers, underscores, and hyphens; up to 64 characters.";
+        }
+
+        if (progressRoom instanceof HTMLElement) {
+          progressRoom.dataset.state = valid ? "pass" : "";
+        }
+
+        try {
+          if (valid) {
+            sessionStorage.setItem("verge-room", value);
+          } else {
+            sessionStorage.removeItem("verge-room");
+          }
+        } catch {
+          // Storage is optional.
+        }
+
+        const appUrl = root.dataset.appUrl ?? "";
+        if (
+          launch instanceof HTMLAnchorElement &&
+          openDevelopment instanceof HTMLAnchorElement &&
+          handoffStatus instanceof HTMLElement
+        ) {
+          if (appUrl && valid) {
+            const target = new URL(appUrl, window.location.href);
+            target.searchParams.set("room", value);
+            launch.href = target.toString();
+            launch.hidden = false;
+            openDevelopment.hidden = true;
+            handoffStatus.textContent =
+              "Room code is ready to hand off to the configured Verge deployment.";
+          } else if (appUrl) {
+            launch.hidden = true;
+            openDevelopment.hidden = true;
+            handoffStatus.textContent =
+              "Choose a valid room code before opening Verge.";
+          } else {
+            launch.hidden = true;
+            openDevelopment.hidden = false;
+          }
+        }
+      }
+
+      if (roomInput instanceof HTMLInputElement) {
+        const fromQuery =
+          new URLSearchParams(window.location.search).get("room");
+        let saved = "";
+
+        try {
+          saved = sessionStorage.getItem("verge-room") ?? "";
+        } catch {
+          saved = "";
+        }
+
+        roomInput.value =
+          (fromQuery && roomPattern.test(fromQuery)
+            ? fromQuery
+            : saved && roomPattern.test(saved)
+              ? saved
+              : randomRoom());
+
+        roomInput.addEventListener("input", updateRoom);
+        updateRoom();
+      }
+
+      generateRoom?.addEventListener("click", () => {
+        if (!(roomInput instanceof HTMLInputElement)) return;
+        roomInput.value = randomRoom();
+        updateRoom();
+        roomInput.focus();
+        roomInput.select();
+      });
+
+      copyRoom?.addEventListener("click", async () => {
+        if (!(roomInput instanceof HTMLInputElement)) return;
+        const value = roomInput.value.trim();
+        if (!roomPattern.test(value)) return;
+
+        try {
+          await navigator.clipboard.writeText(value);
+          if (copyStatus) {
+            copyStatus.textContent = "Room code copied.";
+          }
+        } catch {
+          roomInput.focus();
+          roomInput.select();
+          if (copyStatus) {
+            copyStatus.textContent =
+              "Clipboard access was unavailable. The room code is selected.";
+          }
+        }
+      });
+
+      const testDevices = byId("test-devices");
+      const stopDevices = byId("stop-devices");
+      const preview = byId("device-preview");
+      const deviceStatus = byId("device-status");
+      const progressDevices = byId("progress-devices");
+
+      let previewStream;
+
+      function stopPreview() {
+        if (previewStream) {
+          previewStream.getTracks().forEach((track) => track.stop());
+          previewStream = undefined;
+        }
+
+        if (preview instanceof HTMLVideoElement) {
+          preview.srcObject = null;
+          preview.hidden = true;
+        }
+
+        if (stopDevices instanceof HTMLButtonElement) {
+          stopDevices.disabled = true;
+        }
+      }
+
+      testDevices?.addEventListener("click", async () => {
+        if (
+          !navigator.mediaDevices ||
+          typeof navigator.mediaDevices.getUserMedia !== "function"
+        ) {
+          if (deviceStatus instanceof HTMLElement) {
+            deviceStatus.dataset.state = "error";
+            deviceStatus.textContent =
+              "Camera and microphone capture are not available in this browser.";
+          }
+          return;
+        }
+
+        stopPreview();
+
+        if (deviceStatus instanceof HTMLElement) {
+          deviceStatus.dataset.state = "";
+          deviceStatus.textContent =
+            "Waiting for browser permission…";
+        }
+
+        try {
+          previewStream =
+            await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            });
+
+          if (preview instanceof HTMLVideoElement) {
+            preview.srcObject = previewStream;
+            preview.hidden = false;
+            await preview.play().catch(() => undefined);
+          }
+
+          if (stopDevices instanceof HTMLButtonElement) {
+            stopDevices.disabled = false;
+          }
+
+          if (deviceStatus instanceof HTMLElement) {
+            const videoTracks = previewStream.getVideoTracks().length;
+            const audioTracks = previewStream.getAudioTracks().length;
+            deviceStatus.dataset.state = "";
+            deviceStatus.textContent =
+              "Ready: " +
+              videoTracks +
+              " camera track and " +
+              audioTracks +
+              " microphone track available.";
+          }
+
+          if (progressDevices instanceof HTMLElement) {
+            progressDevices.dataset.state = "pass";
+          }
+        } catch (error) {
+          if (deviceStatus instanceof HTMLElement) {
+            const denied =
+              error instanceof DOMException &&
+              error.name === "NotAllowedError";
+            deviceStatus.dataset.state = "error";
+            deviceStatus.textContent = denied
+              ? "Camera or microphone permission was denied. You can change site permissions in the browser and retry."
+              : "The browser could not start the requested camera and microphone.";
+          }
+        }
+      });
+
+      stopDevices?.addEventListener("click", () => {
+        stopPreview();
+        if (deviceStatus instanceof HTMLElement) {
+          deviceStatus.dataset.state = "";
+          deviceStatus.textContent =
+            "Device preview stopped. The readiness check remains complete.";
+        }
+      });
+
+      window.addEventListener("pagehide", stopPreview);
+    }
+  </script>
+</BaseLayout>

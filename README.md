@@ -38,4 +38,15 @@ pnpm dev
 
 The web client runs on http://localhost:5173 and the signaling service on ws://localhost:8787.
 
+## Landing and onboarding site
+
+The static landing and onboarding experience lives in `apps/site` and is built with Astro on Vite.
+
+```bash
+pnpm site:dev
+pnpm site:build
+```
+
+The GitHub Pages workflow publishes the site at `https://xtreemze.github.io/verge/`. It intentionally does not host the signaling service. If a separately deployed Verge web client should be launched from onboarding, provide `PUBLIC_VERGE_APP_URL` when building the site; otherwise onboarding links to the local development setup.
+
 See `docs/architecture.md`, `docs/codec-policy.md`, and `docs/security.md` for design constraints.
