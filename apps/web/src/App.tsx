@@ -27,6 +27,7 @@ import {
   supportedVideoMimeTypes,
   type ConnectionQualitySnapshot
 } from "@verge/webrtc";
+import { loadIceServers } from "./ice-config";
 
 interface RemotePeer {
   peer: PeerSummary;
@@ -60,16 +61,6 @@ function signalingUrl(): string {
   }
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${location.hostname}:8787`;
-}
-
-function configuredIceServers(): RTCIceServer[] | undefined {
-  const raw = import.meta.env.VITE_ICE_SERVERS_JSON;
-  if (!raw) return undefined;
-  try {
-    return JSON.parse(raw) as RTCIceServer[];
-  } catch {
-    return undefined;
-  }
 }
 
 function attachVideo(
@@ -143,7 +134,7 @@ export function App() {
         cameraTrack ? supportsNativeBackgroundBlur(cameraTrack) : false
       );
 
-      const iceServers = configuredIceServers();
+      const iceServers = await loadIceServers();
       conference = createConferenceTransport({
         topology: "mesh",
         signalingUrl: signalingUrl(),
@@ -438,12 +429,19 @@ export function App() {
                                   : `loss ${quality().packetLossPercent.toFixed(1)}%`,
                                 quality().jitterMs === undefined
                                   ? undefined
-                                  : `jitter ${Math.round(quality().jitterMs)} ms`
+                                  : `jitter ${Math.round(quality().jitterMs)} ms`,
+                                quality().icePath === "unknown"
+                                  ? undefined
+                                  : quality().icePath === "relay"
+                                    ? "TURN relay"
+                                    : "direct ICE"
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
                             >
-                              {quality().level}
+                              {quality().icePath === "unknown"
+                                ? quality().level
+                                : `${quality().level} · ${quality().icePath}`}
                             </span>
                           )}
                         </Show>
