@@ -76,9 +76,11 @@ const connections = new Set<WebSocket>();
 const server = new WebSocketServer({
   port,
   maxPayload: 256 * 1024,
-  verifyClient: ({ origin }) =>
+  verifyClient: (
+    info: { origin: string }
+  ) =>
     isSignalingOriginAllowed(
-      origin,
+      info.origin || undefined,
       originPolicy
     )
 });
