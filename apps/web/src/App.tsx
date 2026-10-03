@@ -5,7 +5,10 @@ import {
   createSignal,
   onCleanup
 } from "solid-js";
-import { MeshConference } from "@verge/conference";
+import {
+  createConferenceTransport,
+  type ConferenceTransport
+} from "@verge/conference";
 import {
   acquireDisplayMedia,
   acquireLocalMedia,
@@ -94,7 +97,7 @@ export function App() {
   const [blurEnabled, setBlurEnabled] = createSignal(false);
   const [blurAvailable, setBlurAvailable] = createSignal(false);
 
-  let conference: MeshConference | undefined;
+  let conference: ConferenceTransport | undefined;
   let displayStream: MediaStream | undefined;
 
   const codecs = createMemo(() => {
@@ -135,7 +138,8 @@ export function App() {
       );
 
       const iceServers = configuredIceServers();
-      conference = new MeshConference({
+      conference = createConferenceTransport({
+        topology: "mesh",
         signalingUrl: signalingUrl(),
         roomId: roomId(),
         displayName: displayName().trim(),
@@ -450,6 +454,7 @@ export function App() {
                 <summary>Media capabilities</summary>
                 <span>Video codecs: {codecs().join(", ") || "not detected"}</span>
                 <span>Audio: Opus preferred</span>
+                <span>Topology: {conference?.topology ?? "mesh"} · direct peer media</span>
               </details>
               <p class="status" role="status">{status()}</p>
             </section>

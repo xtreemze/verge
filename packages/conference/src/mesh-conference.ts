@@ -8,25 +8,34 @@ import type {
 } from "@verge/protocol";
 import { PeerSession } from "@verge/webrtc";
 import { SignalingClient } from "./signaling";
+import type {
+  ConferenceTransport,
+  ConferenceTransportBaseOptions,
+  ConferenceTransportCapabilities,
+  ConferenceTransportEvents
+} from "./transport";
 
-export interface MeshConferenceEvents {
-  onReady?(selfId: string): void;
-  onPeerStream(peer: PeerSummary, stream: MediaStream): void;
-  onPeerLeft?(peerId: string): void;
-  onChatMessage(peer: PeerSummary, message: ChatMessage): void;
-  onFile(peer: PeerSummary, file: ReceivedFile): void;
-  onError?(message: string): void;
-}
+export type MeshConferenceEvents = ConferenceTransportEvents;
 
-export interface MeshConferenceOptions extends MeshConferenceEvents {
+export interface MeshConferenceOptions
+  extends ConferenceTransportBaseOptions {
   signalingUrl: string;
-  roomId: string;
-  displayName: string;
-  localStream: MediaStream;
   iceServers?: RTCIceServer[];
 }
 
-export class MeshConference {
+export const MESH_CONFERENCE_CAPABILITIES: ConferenceTransportCapabilities = {
+  topology: "mesh",
+  directPeerMedia: true,
+  selectiveSubscription: false,
+  simulcast: false,
+  svc: false,
+  dataChannels: true
+};
+
+export class MeshConference implements ConferenceTransport {
+  readonly topology = "mesh" as const;
+  readonly capabilities = MESH_CONFERENCE_CAPABILITIES;
+
   #signaling: SignalingClient;
   #sessions = new Map<string, PeerSession>();
   #options: MeshConferenceOptions;
