@@ -8,3 +8,12 @@ export {
 } from "./codecs";
 export { PeerSession } from "./peer-session";
 export type { PeerSessionEvents, PeerSessionOptions } from "./peer-session";
+export {
+  classifyConnectionQuality,
+  sampleConnectionQuality
+} from "./quality";
+export type {
+  ConnectionQualityInput,
+  ConnectionQualityLevel,
+  ConnectionQualitySnapshot
+} from "./quality";
