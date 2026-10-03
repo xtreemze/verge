@@ -14,6 +14,10 @@ import {
   sampleConnectionQuality,
   type ConnectionQualitySnapshot
 } from "./quality";
+import {
+  ICE_RESTART_MAX_ATTEMPTS,
+  iceRestartDelay
+} from "./recovery-policy";
 
 const FILE_CHUNK_SIZE = 64 * 1024;
 const FILE_HIGH_WATER_MARK = 4 * 1024 * 1024;
@@ -97,11 +101,16 @@ export class PeerSession {
   #qualityTimer: ReturnType<typeof setInterval> | undefined;
   #qualitySampleInFlight = false;
   #videoPolicy = new AdaptiveVideoPolicy();
+  #initiator: boolean;
+  #restartAttempts = 0;
+  #restartTimer: ReturnType<typeof setTimeout> | undefined;
+  #closed = false;
 
   constructor(options: PeerSessionOptions) {
     this.peer = options.peer;
     this.#events = options;
     this.#sendSignal = options.sendSignal;
+    this.#initiator = options.initiator;
     this.connection = new RTCPeerConnection({
       iceServers: options.iceServers,
       bundlePolicy: "max-bundle"
@@ -125,10 +134,9 @@ export class PeerSession {
     };
 
     this.connection.onconnectionstatechange = () => {
-      this.#events.onStateChange?.(
-        this.peer,
-        this.connection.connectionState
-      );
+      const state = this.connection.connectionState;
+      this.#events.onStateChange?.(this.peer, state);
+      this.#handleConnectionState(state);
       void this.#sampleQuality();
     };
 
@@ -153,9 +161,13 @@ export class PeerSession {
     }, 3_000);
   }
 
-  async startOffer(): Promise<void> {
+  async startOffer(
+    options: { iceRestart?: boolean } = {}
+  ): Promise<void> {
     applyCodecPreferences(this.connection);
-    const offer = await this.connection.createOffer();
+    const offer = await this.connection.createOffer({
+      iceRestart: options.iceRestart ?? false
+    });
     await this.connection.setLocalDescription(offer);
     if (this.connection.localDescription) {
       this.#sendSignal({
@@ -309,12 +321,76 @@ export class PeerSession {
   }
 
   close(): void {
+    this.#closed = true;
+    this.#clearRestartTimer();
     if (this.#qualityTimer) {
       clearInterval(this.#qualityTimer);
       this.#qualityTimer = undefined;
     }
     this.#chatChannel?.close();
     this.connection.close();
+  }
+
+  #handleConnectionState(
+    state: RTCPeerConnectionState
+  ): void {
+    if (state === "connected") {
+      this.#restartAttempts = 0;
+      this.#clearRestartTimer();
+      return;
+    }
+
+    if (!this.#initiator || this.#closed) return;
+    this.#scheduleIceRestart(state);
+  }
+
+  #scheduleIceRestart(
+    state: RTCPeerConnectionState
+  ): void {
+    if (this.#restartTimer || this.#closed) return;
+
+    const delay = iceRestartDelay(
+      state,
+      this.#restartAttempts
+    );
+    if (delay === null) return;
+
+    this.#restartTimer = setTimeout(() => {
+      this.#restartTimer = undefined;
+      void this.#restartIce();
+    }, delay);
+  }
+
+  async #restartIce(): Promise<void> {
+    if (
+      this.#closed ||
+      this.connection.connectionState === "connected" ||
+      this.#restartAttempts >= ICE_RESTART_MAX_ATTEMPTS
+    ) {
+      return;
+    }
+
+    this.#restartAttempts += 1;
+
+    try {
+      this.connection.restartIce();
+      await this.startOffer({ iceRestart: true });
+    } catch {
+      // A later bounded retry may still recover a transient failure.
+    }
+
+    if (
+      !this.#closed &&
+      this.connection.connectionState !== "connected"
+    ) {
+      this.#scheduleIceRestart("disconnected");
+    }
+  }
+
+  #clearRestartTimer(): void {
+    if (!this.#restartTimer) return;
+    clearTimeout(this.#restartTimer);
+    this.#restartTimer = undefined;
   }
 
   async #sampleQuality(): Promise<void> {
