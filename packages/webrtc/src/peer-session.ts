@@ -219,11 +219,25 @@ export class PeerSession {
     });
   }
 
-  async replaceVideoTrack(track: MediaStreamTrack): Promise<void> {
+  async replaceTrack(
+    kind: "audio" | "video",
+    track: MediaStreamTrack
+  ): Promise<void> {
     const sender = this.connection
       .getSenders()
-      .find((candidate) => candidate.track?.kind === "video");
-    await sender?.replaceTrack(track);
+      .find((candidate) => candidate.track?.kind === kind);
+    if (!sender) {
+      throw new Error(`No active ${kind} sender is available.`);
+    }
+    await sender.replaceTrack(track);
+  }
+
+  async replaceVideoTrack(track: MediaStreamTrack): Promise<void> {
+    await this.replaceTrack("video", track);
+  }
+
+  async replaceAudioTrack(track: MediaStreamTrack): Promise<void> {
+    await this.replaceTrack("audio", track);
   }
 
   close(): void {
