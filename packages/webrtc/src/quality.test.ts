@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyConnectionQuality } from "./quality";
+import { classifyConnectionQuality, classifyIcePath } from "./quality";
 
 describe("classifyConnectionQuality", () => {
   it("reports connection establishment as reconnecting", () => {
@@ -57,5 +57,18 @@ describe("classifyConnectionQuality", () => {
     expect(
       classifyConnectionQuality({ connectionState: "failed" })
     ).toBe("poor");
+  });
+});
+
+
+describe("classifyIcePath", () => {
+  it("identifies direct and TURN-relayed candidate pairs", () => {
+    expect(classifyIcePath("host", "srflx")).toBe("direct");
+    expect(classifyIcePath("relay", "host")).toBe("relay");
+    expect(classifyIcePath("host", "relay")).toBe("relay");
+  });
+
+  it("reports unknown when candidate metadata is incomplete", () => {
+    expect(classifyIcePath(undefined, "host")).toBe("unknown");
   });
 });
