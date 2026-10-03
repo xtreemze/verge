@@ -7,6 +7,10 @@ import type {
 } from "@verge/protocol";
 import { applyCodecPreferences } from "./codecs";
 import {
+  AdaptiveVideoPolicy,
+  applyVideoAdaptation
+} from "./adaptive-video";
+import {
   sampleConnectionQuality,
   type ConnectionQualitySnapshot
 } from "./quality";
@@ -92,6 +96,7 @@ export class PeerSession {
   #chatChannel: RTCDataChannel | undefined;
   #qualityTimer: ReturnType<typeof setInterval> | undefined;
   #qualitySampleInFlight = false;
+  #videoPolicy = new AdaptiveVideoPolicy();
 
   constructor(options: PeerSessionOptions) {
     this.peer = options.peer;
@@ -276,6 +281,16 @@ export class PeerSession {
           candidate.track?.kind === "video"
       );
     await sender?.replaceTrack(track);
+    if (sender) {
+      try {
+        await applyVideoAdaptation(
+          sender,
+          this.#videoPolicy.tier
+        );
+      } catch {
+        // Encoding adaptation is best-effort across WebRTC implementations.
+      }
+    }
   }
 
   close(): void {
@@ -303,6 +318,29 @@ export class PeerSession {
         this.peer,
         quality
       );
+
+      const nextTier = this.#videoPolicy.observe(
+        quality.level,
+        quality.sampledAt
+      );
+      if (nextTier) {
+        const sender = this.connection
+          .getSenders()
+          .find(
+            (candidate) =>
+              candidate.track?.kind === "video"
+          );
+        if (sender) {
+          try {
+            await applyVideoAdaptation(
+              sender,
+              nextTier
+            );
+          } catch {
+            // Keep the call running when sender parameters are unsupported.
+          }
+        }
+      }
     } catch {
       // Stats are diagnostic and must never interrupt the call.
     } finally {
