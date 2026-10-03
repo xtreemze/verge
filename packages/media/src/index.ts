@@ -64,6 +64,26 @@ export async function enumerateMediaDevices(): Promise<MediaDeviceGroups> {
   };
 }
 
+interface SinkSelectableMediaElement extends HTMLMediaElement {
+  setSinkId(deviceId: string): Promise<void>;
+}
+
+export function supportsAudioOutputSelection(): boolean {
+  return (
+    typeof HTMLMediaElement !== "undefined" &&
+    "setSinkId" in HTMLMediaElement.prototype
+  );
+}
+
+export async function setAudioOutputDevice(
+  element: HTMLMediaElement,
+  deviceId: string
+): Promise<boolean> {
+  if (!supportsAudioOutputSelection()) return false;
+  await (element as SinkSelectableMediaElement).setSinkId(deviceId);
+  return true;
+}
+
 export async function acquireCameraTrack(
   options: CameraTrackOptions = {}
 ): Promise<MediaStreamTrack> {
