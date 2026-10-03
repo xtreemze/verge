@@ -286,10 +286,9 @@ export class PeerSession {
       // A subsequent bounded retry may still recover a transient failure.
     }
 
-    if (
-      !this.#closed &&
-      this.connection.connectionState !== "connected"
-    ) {
+    const stateAfterRestart =
+      this.connection.connectionState as RTCPeerConnectionState;
+    if (!this.#closed && stateAfterRestart !== "connected") {
       this.#scheduleIceRestart("disconnected");
     }
   }
