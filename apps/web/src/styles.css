@@ -246,11 +246,35 @@ h1 {
   border-color: #607ba8;
 }
 
+.device-settings,
 .diagnostics {
   align-self: center;
   color: #8e949f;
   font-size: 0.75rem;
   text-align: center;
+}
+
+.device-settings {
+  width: min(36rem, 100%);
+  margin-top: 0.4rem;
+  color: #8e949f;
+  font-size: 0.75rem;
+}
+
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.device-grid label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.device-grid select {
+  padding: 0.55rem 0.7rem;
 }
 
 .diagnostics span {
@@ -373,6 +397,10 @@ h1 {
 
   .topbar {
     align-items: flex-start;
+  }
+
+  .device-grid {
+    grid-template-columns: 1fr;
   }
 
   .peer-count {

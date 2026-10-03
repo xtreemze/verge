@@ -7,8 +7,11 @@ import {
 } from "solid-js";
 import { MeshConference } from "@verge/conference";
 import {
+  acquireCameraTrack,
   acquireDisplayMedia,
   acquireLocalMedia,
+  acquireMicrophoneTrack,
+  enumerateMediaDevices,
   setNativeBackgroundBlur,
   setTrackEnabled,
   stopStream,
@@ -93,6 +96,11 @@ export function App() {
   const [screenSharing, setScreenSharing] = createSignal(false);
   const [blurEnabled, setBlurEnabled] = createSignal(false);
   const [blurAvailable, setBlurAvailable] = createSignal(false);
+  const [cameras, setCameras] = createSignal<MediaDeviceInfo[]>([]);
+  const [microphones, setMicrophones] = createSignal<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = createSignal("");
+  const [selectedMicrophoneId, setSelectedMicrophoneId] = createSignal("");
+  const [switchingDevice, setSwitchingDevice] = createSignal(false);
 
   let conference: MeshConference | undefined;
   let displayStream: MediaStream | undefined;
@@ -110,6 +118,16 @@ export function App() {
       ...current.filter((item) => item.peer.id !== peer.id),
       { peer, stream }
     ]);
+  }
+
+  async function refreshDevices(): Promise<void> {
+    try {
+      const devices = await enumerateMediaDevices();
+      setCameras(devices.cameras);
+      setMicrophones(devices.microphones);
+    } catch {
+      // Device enumeration can fail before permission or during OS changes.
+    }
   }
 
   async function join(): Promise<void> {
@@ -130,9 +148,15 @@ export function App() {
       const stream = await acquireLocalMedia({ audioMode: audioMode() });
       setLocalStream(stream);
       const cameraTrack = stream.getVideoTracks()[0];
+      const microphoneTrack = stream.getAudioTracks()[0];
+      setSelectedCameraId(cameraTrack?.getSettings().deviceId ?? "");
+      setSelectedMicrophoneId(
+        microphoneTrack?.getSettings().deviceId ?? ""
+      );
       setBlurAvailable(
         cameraTrack ? supportsNativeBackgroundBlur(cameraTrack) : false
       );
+      await refreshDevices();
 
       const iceServers = configuredIceServers();
       conference = new MeshConference({
@@ -218,6 +242,81 @@ export function App() {
     setCameraEnabled(next);
   }
 
+  async function switchCamera(deviceId: string): Promise<void> {
+    const stream = localStream();
+    if (!stream || !deviceId || switchingDevice()) return;
+
+    setSwitchingDevice(true);
+    setStatus("Switching camera…");
+    try {
+      const nextTrack = await acquireCameraTrack({ deviceId });
+      nextTrack.enabled = cameraEnabled();
+
+      const blurSupported = supportsNativeBackgroundBlur(nextTrack);
+      if (blurEnabled() && blurSupported) {
+        await setNativeBackgroundBlur(nextTrack, true);
+      } else if (blurEnabled() && !blurSupported) {
+        setBlurEnabled(false);
+      }
+      setBlurAvailable(blurSupported);
+
+      const previous = stream.getVideoTracks()[0];
+      if (!screenSharing() && conference) {
+        await conference.replaceVideoTrack(nextTrack);
+      }
+      if (previous) {
+        stream.removeTrack(previous);
+        previous.stop();
+      }
+      stream.addTrack(nextTrack);
+      setSelectedCameraId(nextTrack.getSettings().deviceId ?? deviceId);
+      await refreshDevices();
+      setStatus("Camera switched");
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Unable to switch camera."
+      );
+    } finally {
+      setSwitchingDevice(false);
+    }
+  }
+
+  async function switchMicrophone(deviceId: string): Promise<void> {
+    const stream = localStream();
+    if (!stream || !deviceId || switchingDevice()) return;
+
+    setSwitchingDevice(true);
+    setStatus("Switching microphone…");
+    try {
+      const nextTrack = await acquireMicrophoneTrack({
+        deviceId,
+        audioMode: audioMode()
+      });
+      nextTrack.enabled = micEnabled();
+
+      if (conference) {
+        await conference.replaceAudioTrack(nextTrack);
+      }
+      const previous = stream.getAudioTracks()[0];
+      if (previous) {
+        stream.removeTrack(previous);
+        previous.stop();
+      }
+      stream.addTrack(nextTrack);
+      setSelectedMicrophoneId(nextTrack.getSettings().deviceId ?? deviceId);
+      await refreshDevices();
+      setStatus("Microphone switched");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to switch microphone."
+      );
+    } finally {
+      setSwitchingDevice(false);
+    }
+  }
+
   async function toggleBlur(): Promise<void> {
     const track = localStream()?.getVideoTracks()[0];
     if (!track) return;
@@ -295,7 +394,14 @@ export function App() {
     setStatus("Invite link copied");
   }
 
+  const handleDeviceChange = () => void refreshDevices();
+  navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+
   onCleanup(() => {
+    navigator.mediaDevices.removeEventListener(
+      "devicechange",
+      handleDeviceChange
+    );
     conference?.close();
     if (displayStream) stopStream(displayStream);
     const stream = localStream();
@@ -445,6 +551,50 @@ export function App() {
                   {blurEnabled() ? "Remove blur" : "Background blur"}
                 </button>
               </div>
+
+              <details class="device-settings">
+                <summary>Devices</summary>
+                <div class="device-grid">
+                  <label>
+                    Camera
+                    <select
+                      value={selectedCameraId()}
+                      disabled={switchingDevice() || cameras().length === 0}
+                      onChange={(event) =>
+                        void switchCamera(event.currentTarget.value)
+                      }
+                    >
+                      <For each={cameras()}>
+                        {(device, index) => (
+                          <option value={device.deviceId}>
+                            {device.label || `Camera ${index() + 1}`}
+                          </option>
+                        )}
+                      </For>
+                    </select>
+                  </label>
+                  <label>
+                    Microphone
+                    <select
+                      value={selectedMicrophoneId()}
+                      disabled={
+                        switchingDevice() || microphones().length === 0
+                      }
+                      onChange={(event) =>
+                        void switchMicrophone(event.currentTarget.value)
+                      }
+                    >
+                      <For each={microphones()}>
+                        {(device, index) => (
+                          <option value={device.deviceId}>
+                            {device.label || `Microphone ${index() + 1}`}
+                          </option>
+                        )}
+                      </For>
+                    </select>
+                  </label>
+                </div>
+              </details>
 
               <details class="diagnostics">
                 <summary>Media capabilities</summary>

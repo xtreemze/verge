@@ -73,6 +73,14 @@ export class MeshConference {
     );
   }
 
+  async replaceAudioTrack(track: MediaStreamTrack): Promise<void> {
+    await Promise.all(
+      Array.from(this.#sessions.values(), (session) =>
+        session.replaceAudioTrack(track)
+      )
+    );
+  }
+
   close(): void {
     for (const session of this.#sessions.values()) session.close();
     this.#sessions.clear();
