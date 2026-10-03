@@ -4,6 +4,8 @@ export type ConnectionQualityLevel =
   | "poor"
   | "reconnecting";
 
+export type IcePath = "direct" | "relay" | "unknown";
+
 export interface ConnectionQualityInput {
   connectionState: RTCPeerConnectionState;
   rttMs?: number;
@@ -15,7 +17,36 @@ export interface ConnectionQualityInput {
 export interface ConnectionQualitySnapshot extends ConnectionQualityInput {
   level: ConnectionQualityLevel;
   availableOutgoingBitrate?: number;
+  icePath: IcePath;
+  localCandidateType?: RTCIceCandidateType;
+  remoteCandidateType?: RTCIceCandidateType;
   sampledAt: number;
+}
+
+const ICE_CANDIDATE_TYPES = new Set<RTCIceCandidateType>([
+  "host",
+  "srflx",
+  "prflx",
+  "relay"
+]);
+
+function candidateType(
+  value: unknown
+): RTCIceCandidateType | undefined {
+  return typeof value === "string" &&
+    ICE_CANDIDATE_TYPES.has(value as RTCIceCandidateType)
+    ? (value as RTCIceCandidateType)
+    : undefined;
+}
+
+export function classifyIcePath(
+  local: RTCIceCandidateType | undefined,
+  remote: RTCIceCandidateType | undefined
+): IcePath {
+  if (!local || !remote) return "unknown";
+  return local === "relay" || remote === "relay"
+    ? "relay"
+    : "direct";
 }
 
 function optionalNumber(
@@ -82,6 +113,8 @@ export async function sampleConnectionQuality(
     }
   });
 
+  let selectedLocalCandidateId: string | undefined;
+  let selectedRemoteCandidateId: string | undefined;
   let rttMs: number | undefined;
   let availableOutgoingBitrate: number | undefined;
   let packetsLost = 0;
@@ -101,6 +134,14 @@ export async function sampleConnectionQuality(
             (stat.nominated === true || stat.selected === true);
 
       if (isSelected) {
+        selectedLocalCandidateId =
+          typeof stat.localCandidateId === "string"
+            ? stat.localCandidateId
+            : selectedLocalCandidateId;
+        selectedRemoteCandidateId =
+          typeof stat.remoteCandidateId === "string"
+            ? stat.remoteCandidateId
+            : selectedRemoteCandidateId;
         rttMs =
           optionalNumber(stat.currentRoundTripTime, 1_000) ??
           rttMs;
@@ -128,6 +169,27 @@ export async function sampleConnectionQuality(
     }
   });
 
+  let localCandidateType: RTCIceCandidateType | undefined;
+  let remoteCandidateType: RTCIceCandidateType | undefined;
+
+  report.forEach((entry) => {
+    const stat = entry as unknown as Record<string, unknown>;
+    if (
+      selectedLocalCandidateId !== undefined &&
+      stat.id === selectedLocalCandidateId &&
+      stat.type === "local-candidate"
+    ) {
+      localCandidateType = candidateType(stat.candidateType);
+    }
+    if (
+      selectedRemoteCandidateId !== undefined &&
+      stat.id === selectedRemoteCandidateId &&
+      stat.type === "remote-candidate"
+    ) {
+      remoteCandidateType = candidateType(stat.candidateType);
+    }
+  });
+
   const totalPackets = packetsReceived + Math.max(0, packetsLost);
   const packetLossPercent =
     totalPackets > 0
@@ -150,6 +212,16 @@ export async function sampleConnectionQuality(
     ...(availableOutgoingBitrate === undefined
       ? {}
       : { availableOutgoingBitrate }),
+    icePath: classifyIcePath(
+      localCandidateType,
+      remoteCandidateType
+    ),
+    ...(localCandidateType === undefined
+      ? {}
+      : { localCandidateType }),
+    ...(remoteCandidateType === undefined
+      ? {}
+      : { remoteCandidateType }),
     sampledAt: Date.now()
   };
 }

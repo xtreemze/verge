@@ -27,6 +27,7 @@ import {
   supportedVideoMimeTypes,
   type ConnectionQualitySnapshot
 } from "@verge/webrtc";
+import { loadIceServers } from "./ice-config";
 
 interface RemotePeer {
   peer: PeerSummary;
@@ -62,16 +63,6 @@ function signalingUrl(): string {
   return `${protocol}//${location.hostname}:8787`;
 }
 
-function configuredIceServers(): RTCIceServer[] | undefined {
-  const raw = import.meta.env.VITE_ICE_SERVERS_JSON;
-  if (!raw) return undefined;
-  try {
-    return JSON.parse(raw) as RTCIceServer[];
-  } catch {
-    return undefined;
-  }
-}
-
 function attachVideo(
   element: HTMLVideoElement,
   stream: MediaStream,
@@ -98,6 +89,11 @@ function connectionQualityTitle(
     details.push(
       `jitter ${Math.round(quality.jitterMs)} ms`
     );
+  }
+  if (quality.icePath === "relay") {
+    details.push("TURN relay");
+  } else if (quality.icePath === "direct") {
+    details.push("direct ICE");
   }
   return details.join(" · ");
 }
@@ -163,7 +159,7 @@ export function App() {
         cameraTrack ? supportsNativeBackgroundBlur(cameraTrack) : false
       );
 
-      const iceServers = configuredIceServers();
+      const iceServers = await loadIceServers();
       conference = createConferenceTransport({
         topology: "mesh",
         signalingUrl: signalingUrl(),
@@ -451,7 +447,9 @@ export function App() {
                               class={`quality-badge quality-${quality().level}`}
                               title={connectionQualityTitle(quality())}
                             >
-                              {quality().level}
+                              {quality().icePath === "unknown"
+                                ? quality().level
+                                : `${quality().level} · ${quality().icePath}`}
                             </span>
                           )}
                         </Show>
