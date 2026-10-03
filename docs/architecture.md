@@ -14,7 +14,7 @@ The signaling service is a rendezvous mechanism. It knows room membership and fo
 - `packages/protocol`: JSON-safe signaling and data contracts.
 - `packages/media`: capture and local media processing capabilities.
 - `packages/webrtc`: codec policy and per-peer WebRTC sessions.
-- `packages/conference`: room-level mesh orchestration.
+- `packages/conference`: topology-neutral room orchestration with mesh as the first transport.
 
 The packages deliberately avoid SolidJS state. UI and transport can therefore evolve independently.
 
@@ -24,7 +24,11 @@ A room with N participants establishes up to N × (N - 1) / 2 peer connections. 
 
 This preserves direct P2P behavior for small rooms but makes upload bandwidth and encoder load grow linearly per participant. The initial signaling server defaults to eight participants, but practical mesh limits depend on resolution, hardware encoders, network uplink, and whether screen sharing is active.
 
-The conference package is the boundary for a future SFU transport. The application domain should not depend directly on SFU-specific concepts.
+The conference package exposes a `ConferenceTransport` contract. The web application depends on that contract and creates the current mesh implementation through `createConferenceTransport()`, rather than depending on `MeshConference` directly.
+
+Each transport declares capabilities such as direct peer media, data channels, selective subscription, simulcast, and SVC. The current mesh transport reports only capabilities it actually implements. A future SFU adapter can implement the same participant, media, chat, file, and lifecycle surface without leaking SFU-specific types into the application.
+
+Topology switching is intentionally not automatic yet. Before an SFU is introduced, Verge must define application-level media E2EE and a deterministic policy based on participant count, encoder load, active publications, and measured uplink capacity.
 
 ## Connection establishment
 
