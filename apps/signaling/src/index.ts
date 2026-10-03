@@ -6,6 +6,7 @@ import {
   type ServerMessage
 } from "@verge/protocol";
 import { WebSocket, WebSocketServer } from "ws";
+import { createSignalingOriginPolicy, isSignalingOriginAllowed } from "./origin-policy.ts";
 import { consumeFixedWindow } from "./rate-limit.ts";
 
 interface ClientContext {
@@ -30,13 +31,20 @@ const sweepIntervalMs = Number(
   process.env.VERGE_SIGNAL_SWEEP_INTERVAL_MS ?? 60_000
 );
 
+const originPolicy = createSignalingOriginPolicy(
+  process.env.VERGE_ALLOWED_ORIGINS,
+  process.env.NODE_ENV === "production"
+);
+
 const rooms = new Map<string, Map<string, WebSocket>>();
 const clients = new WeakMap<WebSocket, ClientContext>();
 const connections = new Set<WebSocket>();
 
 const server = new WebSocketServer({
   port,
-  maxPayload: 256 * 1024
+  maxPayload: 256 * 1024,
+  verifyClient: ({ origin }) =>
+    isSignalingOriginAllowed(origin, originPolicy)
 });
 
 function send(socket: WebSocket, message: ServerMessage): void {

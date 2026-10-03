@@ -10,7 +10,7 @@ The signaling service is not an end-to-end trust anchor. Production deployments 
 
 The current service intentionally stores room state only in memory and imposes a small signaling payload limit. Before public deployment add:
 
-- strict Origin allowlisting
+- strict Origin allowlisting (`VERGE_ALLOWED_ORIGINS`, required in production)
 - authentication or cryptographically unguessable room invitations
 - per-IP and per-room rate limits
 - connection and room creation quotas
