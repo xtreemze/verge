@@ -230,11 +230,11 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
         "cap-data"
       ];
 
-      function byId(id) {
+      function byId(id: string): HTMLElement | null {
         return document.getElementById(id);
       }
 
-      function setCapability(id, supported) {
+      function setCapability(id: string, supported: boolean): void {
         const item = byId(id);
         if (!(item instanceof HTMLElement)) return;
 
@@ -293,7 +293,7 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
 
       const roomPattern = /^[A-Za-z0-9_-]{1,64}$/;
 
-      function randomRoom() {
+      function randomRoom(): string {
         if (typeof crypto.randomUUID === "function") {
           return crypto.randomUUID().replaceAll("-", "").slice(0, 12);
         }
@@ -305,7 +305,7 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
         ).join("").slice(0, 12);
       }
 
-      function updateRoom() {
+      function updateRoom(): void {
         if (!(roomInput instanceof HTMLInputElement)) return;
 
         const value = roomInput.value.trim();
@@ -421,9 +421,9 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
       const deviceStatus = byId("device-status");
       const progressDevices = byId("progress-devices");
 
-      let previewStream;
+      let previewStream: MediaStream | undefined;
 
-      function stopPreview() {
+      function stopPreview(): void {
         if (previewStream) {
           previewStream.getTracks().forEach((track) => track.stop());
           previewStream = undefined;
