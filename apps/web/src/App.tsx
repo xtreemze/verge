@@ -12,9 +12,11 @@ import {
   acquireLocalMedia,
   acquireMicrophoneTrack,
   enumerateMediaDevices,
+  setAudioOutputDevice,
   setNativeBackgroundBlur,
   setTrackEnabled,
   stopStream,
+  supportsAudioOutputSelection,
   supportsNativeBackgroundBlur,
   type AudioMode
 } from "@verge/media";
@@ -72,11 +74,16 @@ function configuredIceServers(): RTCIceServer[] | undefined {
 function attachVideo(
   element: HTMLVideoElement,
   stream: MediaStream,
-  muted = false
+  muted = false,
+  outputDeviceId = ""
 ): void {
   element.srcObject = stream;
   element.muted = muted;
   void element.play().catch(() => undefined);
+
+  if (!muted && outputDeviceId) {
+    void setAudioOutputDevice(element, outputDeviceId).catch(() => undefined);
+  }
 }
 
 export function App() {
@@ -98,9 +105,12 @@ export function App() {
   const [blurAvailable, setBlurAvailable] = createSignal(false);
   const [cameras, setCameras] = createSignal<MediaDeviceInfo[]>([]);
   const [microphones, setMicrophones] = createSignal<MediaDeviceInfo[]>([]);
+  const [speakers, setSpeakers] = createSignal<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = createSignal("");
   const [selectedMicrophoneId, setSelectedMicrophoneId] = createSignal("");
+  const [selectedSpeakerId, setSelectedSpeakerId] = createSignal("");
   const [switchingDevice, setSwitchingDevice] = createSignal(false);
+  const audioOutputSelectionAvailable = supportsAudioOutputSelection();
 
   let conference: MeshConference | undefined;
   let displayStream: MediaStream | undefined;
@@ -125,9 +135,41 @@ export function App() {
       const devices = await enumerateMediaDevices();
       setCameras(devices.cameras);
       setMicrophones(devices.microphones);
+      setSpeakers(devices.speakers);
+
+      if (audioOutputSelectionAvailable) {
+        const current = selectedSpeakerId();
+        const stillAvailable = devices.speakers.some(
+          (device) => device.deviceId === current
+        );
+
+        if (!current || !stillAvailable) {
+          const fallback =
+            devices.speakers.find((device) => device.deviceId === "default") ??
+            devices.speakers[0];
+          const fallbackId = fallback?.deviceId ?? "";
+          setSelectedSpeakerId(fallbackId);
+
+          if (current && fallbackId) {
+            await applySpeakerToRemoteVideos(fallbackId);
+            setStatus("Selected speaker is unavailable; using the default output.");
+          }
+        }
+      }
     } catch {
       // Device enumeration can fail before permission or during OS changes.
     }
+  }
+
+  async function applySpeakerToRemoteVideos(deviceId: string): Promise<void> {
+    const elements = document.querySelectorAll<HTMLVideoElement>(
+      "video[data-remote-video]"
+    );
+    await Promise.all(
+      Array.from(elements, (element) =>
+        setAudioOutputDevice(element, deviceId)
+      )
+    );
   }
 
   async function join(): Promise<void> {
@@ -278,6 +320,24 @@ export function App() {
       );
     } finally {
       setSwitchingDevice(false);
+    }
+  }
+
+  async function switchSpeaker(deviceId: string): Promise<void> {
+    if (!audioOutputSelectionAvailable || !deviceId) return;
+
+    const previous = selectedSpeakerId();
+    setSelectedSpeakerId(deviceId);
+    setStatus("Switching speaker…");
+
+    try {
+      await applySpeakerToRemoteVideos(deviceId);
+      setStatus("Speaker switched");
+    } catch (error) {
+      setSelectedSpeakerId(previous);
+      setStatus(
+        error instanceof Error ? error.message : "Unable to switch speaker."
+      );
     }
   }
 
@@ -503,7 +563,15 @@ export function App() {
                   {(item) => (
                     <article class="video-tile">
                       <video
-                        ref={(element) => attachVideo(element, item.stream)}
+                        ref={(element) => {
+                          element.dataset.remoteVideo = "";
+                          attachVideo(
+                            element,
+                            item.stream,
+                            false,
+                            selectedSpeakerId()
+                          );
+                        }}
                         autoplay
                         playsinline
                       />
@@ -593,6 +661,29 @@ export function App() {
                       </For>
                     </select>
                   </label>
+                  <Show
+                    when={
+                      audioOutputSelectionAvailable && speakers().length > 0
+                    }
+                  >
+                    <label>
+                      Speaker
+                      <select
+                        value={selectedSpeakerId()}
+                        onChange={(event) =>
+                          void switchSpeaker(event.currentTarget.value)
+                        }
+                      >
+                        <For each={speakers()}>
+                          {(device, index) => (
+                            <option value={device.deviceId}>
+                              {device.label || `Speaker ${index() + 1}`}
+                            </option>
+                          )}
+                        </For>
+                      </select>
+                    </label>
+                  </Show>
                 </div>
               </details>
 
