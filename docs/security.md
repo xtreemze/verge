@@ -8,16 +8,17 @@ The signaling service is not an end-to-end trust anchor. Production deployments 
 
 ## Signaling service
 
-The current service intentionally stores room state only in memory and imposes a small signaling payload limit. Before public deployment add:
+The service stores room state only in memory and imposes bounded signaling payloads. The network boundary performs strict runtime message validation, per-connection rate limiting, and idle connection cleanup.
 
-- strict Origin allowlisting
-- authentication or cryptographically unguessable room invitations
-- per-IP and per-room rate limits
+Browser Origin enforcement is configured with `VERGE_ALLOWED_ORIGINS` as a comma-separated HTTP/HTTPS origin allowlist. It is optional for local development and required when `NODE_ENV=production`; production startup fails closed when the allowlist is missing.
+
+Before public deployment, remaining work includes:
+
+- authenticated or cryptographically unguessable room invitations
+- per-IP and per-room rate limits in addition to the current per-connection budget
 - connection and room creation quotas
-- structured schema validation instead of type assertions
 - abuse logging without persisting SDP longer than necessary
 - deployment behind TLS
-- bounded room lifetime / idle expiry
 
 A room identifier is routing metadata, not a password.
 
