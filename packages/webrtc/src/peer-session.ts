@@ -209,6 +209,7 @@ export class PeerSession {
   }
 
   async sendFile(file: File): Promise<void> {
+    const digest = await sha256(file);
     const id = crypto.randomUUID();
     const channel = this.connection.createDataChannel(
       `file:${id}`,
@@ -216,7 +217,6 @@ export class PeerSession {
     );
     channel.binaryType = "arraybuffer";
 
-    const digest = await sha256(file);
     const metadata: FileMetadata = {
       kind: "meta",
       id,
