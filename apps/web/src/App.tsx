@@ -82,6 +82,26 @@ function attachVideo(
   void element.play().catch(() => undefined);
 }
 
+function connectionQualityTitle(
+  quality: ConnectionQualitySnapshot
+): string {
+  const details: string[] = [];
+  if (quality.rttMs !== undefined) {
+    details.push(`RTT ${Math.round(quality.rttMs)} ms`);
+  }
+  if (quality.packetLossPercent !== undefined) {
+    details.push(
+      `loss ${quality.packetLossPercent.toFixed(1)}%`
+    );
+  }
+  if (quality.jitterMs !== undefined) {
+    details.push(
+      `jitter ${Math.round(quality.jitterMs)} ms`
+    );
+  }
+  return details.join(" · ");
+}
+
 export function App() {
   const [roomId, setRoomId] = createSignal(initialRoom());
   const [displayName, setDisplayName] = createSignal("");
@@ -429,19 +449,7 @@ export function App() {
                           {(quality) => (
                             <span
                               class={`quality-badge quality-${quality().level}`}
-                              title={[
-                                quality().rttMs === undefined
-                                  ? undefined
-                                  : `RTT ${Math.round(quality().rttMs)} ms`,
-                                quality().packetLossPercent === undefined
-                                  ? undefined
-                                  : `loss ${quality().packetLossPercent.toFixed(1)}%`,
-                                quality().jitterMs === undefined
-                                  ? undefined
-                                  : `jitter ${Math.round(quality().jitterMs)} ms`
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
+                              title={connectionQualityTitle(quality())}
                             >
                               {quality().level}
                             </span>
