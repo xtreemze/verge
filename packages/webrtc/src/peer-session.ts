@@ -6,6 +6,10 @@ import type {
   SessionDescription
 } from "@verge/protocol";
 import { applyCodecPreferences } from "./codecs";
+import {
+  sampleConnectionQuality,
+  type ConnectionQualitySnapshot
+} from "./quality";
 
 const FILE_CHUNK_SIZE = 64 * 1024;
 const FILE_HIGH_WATER_MARK = 4 * 1024 * 1024;
@@ -16,6 +20,10 @@ export interface PeerSessionEvents {
   onChatMessage(peer: PeerSummary, message: ChatMessage): void;
   onFile(peer: PeerSummary, file: ReceivedFile): void;
   onStateChange?(peer: PeerSummary, state: RTCPeerConnectionState): void;
+  onQualityChange?(
+    peer: PeerSummary,
+    quality: ConnectionQualitySnapshot
+  ): void;
 }
 
 export interface PeerSessionOptions extends PeerSessionEvents {
@@ -49,16 +57,22 @@ function toHex(bytes: ArrayBuffer): string {
 }
 
 async function sha256(blob: Blob): Promise<string> {
-  return toHex(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()));
+  return toHex(
+    await crypto.subtle.digest("SHA-256", await blob.arrayBuffer())
+  );
 }
 
-async function waitForWritable(channel: RTCDataChannel): Promise<void> {
+async function waitForWritable(
+  channel: RTCDataChannel
+): Promise<void> {
   if (channel.bufferedAmount <= FILE_HIGH_WATER_MARK) return;
   channel.bufferedAmountLowThreshold = FILE_LOW_WATER_MARK;
   await new Promise<void>((resolve) => {
-    channel.addEventListener("bufferedamountlow", () => resolve(), {
-      once: true
-    });
+    channel.addEventListener(
+      "bufferedamountlow",
+      () => resolve(),
+      { once: true }
+    );
   });
 }
 
@@ -76,6 +90,8 @@ export class PeerSession {
   #sendSignal: PeerSessionOptions["sendSignal"];
   #pendingCandidates: IceCandidate[] = [];
   #chatChannel: RTCDataChannel | undefined;
+  #qualityTimer: ReturnType<typeof setInterval> | undefined;
+  #qualitySampleInFlight = false;
 
   constructor(options: PeerSessionOptions) {
     this.peer = options.peer;
@@ -92,11 +108,14 @@ export class PeerSession {
 
     this.connection.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
-      this.#sendSignal({ candidate: candidate.toJSON() as IceCandidate });
+      this.#sendSignal({
+        candidate: candidate.toJSON() as IceCandidate
+      });
     };
 
     this.connection.ontrack = (event) => {
-      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      const stream =
+        event.streams[0] ?? new MediaStream([event.track]);
       this.#events.onRemoteStream(this.peer, stream);
     };
 
@@ -105,6 +124,7 @@ export class PeerSession {
         this.peer,
         this.connection.connectionState
       );
+      void this.#sampleQuality();
     };
 
     this.connection.ondatachannel = ({ channel }) => {
@@ -117,9 +137,15 @@ export class PeerSession {
 
     if (options.initiator) {
       this.#bindChatChannel(
-        this.connection.createDataChannel("chat", { ordered: true })
+        this.connection.createDataChannel("chat", {
+          ordered: true
+        })
       );
     }
+
+    this.#qualityTimer = setInterval(() => {
+      void this.#sampleQuality();
+    }, 3_000);
   }
 
   async startOffer(): Promise<void> {
@@ -128,7 +154,9 @@ export class PeerSession {
     await this.connection.setLocalDescription(offer);
     if (this.connection.localDescription) {
       this.#sendSignal({
-        description: descriptionFromLocal(this.connection.localDescription)
+        description: descriptionFromLocal(
+          this.connection.localDescription
+        )
       });
     }
   }
@@ -138,7 +166,9 @@ export class PeerSession {
     candidate?: IceCandidate;
   }): Promise<void> {
     if (payload.description) {
-      await this.connection.setRemoteDescription(payload.description);
+      await this.connection.setRemoteDescription(
+        payload.description
+      );
 
       for (const candidate of this.#pendingCandidates) {
         await this.connection.addIceCandidate(candidate);
@@ -151,7 +181,9 @@ export class PeerSession {
         await this.connection.setLocalDescription(answer);
         if (this.connection.localDescription) {
           this.#sendSignal({
-            description: descriptionFromLocal(this.connection.localDescription)
+            description: descriptionFromLocal(
+              this.connection.localDescription
+            )
           });
         }
       }
@@ -173,9 +205,10 @@ export class PeerSession {
 
   async sendFile(file: File): Promise<void> {
     const id = crypto.randomUUID();
-    const channel = this.connection.createDataChannel(`file:${id}`, {
-      ordered: true
-    });
+    const channel = this.connection.createDataChannel(
+      `file:${id}`,
+      { ordered: true }
+    );
     channel.binaryType = "arraybuffer";
 
     const digest = await sha256(file);
@@ -184,7 +217,8 @@ export class PeerSession {
       id,
       name: file.name,
       size: file.size,
-      mediaType: file.type || "application/octet-stream",
+      mediaType:
+        file.type || "application/octet-stream",
       sha256: digest
     };
 
@@ -194,11 +228,21 @@ export class PeerSession {
         async () => {
           try {
             channel.send(JSON.stringify(metadata));
-            for (let offset = 0; offset < file.size; offset += FILE_CHUNK_SIZE) {
+            for (
+              let offset = 0;
+              offset < file.size;
+              offset += FILE_CHUNK_SIZE
+            ) {
               await waitForWritable(channel);
               channel.send(
                 await file
-                  .slice(offset, Math.min(offset + FILE_CHUNK_SIZE, file.size))
+                  .slice(
+                    offset,
+                    Math.min(
+                      offset + FILE_CHUNK_SIZE,
+                      file.size
+                    )
+                  )
                   .arrayBuffer()
               );
             }
@@ -213,22 +257,57 @@ export class PeerSession {
       );
       channel.addEventListener(
         "error",
-        () => reject(new Error("File data channel failed")),
+        () =>
+          reject(
+            new Error("File data channel failed")
+          ),
         { once: true }
       );
     });
   }
 
-  async replaceVideoTrack(track: MediaStreamTrack): Promise<void> {
+  async replaceVideoTrack(
+    track: MediaStreamTrack
+  ): Promise<void> {
     const sender = this.connection
       .getSenders()
-      .find((candidate) => candidate.track?.kind === "video");
+      .find(
+        (candidate) =>
+          candidate.track?.kind === "video"
+      );
     await sender?.replaceTrack(track);
   }
 
   close(): void {
+    if (this.#qualityTimer) {
+      clearInterval(this.#qualityTimer);
+      this.#qualityTimer = undefined;
+    }
     this.#chatChannel?.close();
     this.connection.close();
+  }
+
+  async #sampleQuality(): Promise<void> {
+    if (
+      this.#qualitySampleInFlight ||
+      this.connection.connectionState === "closed"
+    ) {
+      return;
+    }
+
+    this.#qualitySampleInFlight = true;
+    try {
+      const quality =
+        await sampleConnectionQuality(this.connection);
+      this.#events.onQualityChange?.(
+        this.peer,
+        quality
+      );
+    } catch {
+      // Stats are diagnostic and must never interrupt the call.
+    } finally {
+      this.#qualitySampleInFlight = false;
+    }
   }
 
   #bindChatChannel(channel: RTCDataChannel): void {
@@ -253,14 +332,18 @@ export class PeerSession {
 
     channel.onmessage = async (event) => {
       if (typeof event.data === "string") {
-        const message = JSON.parse(event.data) as FileMetadata | FileDone;
+        const message = JSON.parse(
+          event.data
+        ) as FileMetadata | FileDone;
         if (message.kind === "meta") {
           metadata = message;
           return;
         }
 
         if (message.kind === "done" && metadata) {
-          const blob = new Blob(chunks, { type: metadata.mediaType });
+          const blob = new Blob(chunks, {
+            type: metadata.mediaType
+          });
           const digest = await sha256(blob);
           this.#events.onFile(this.peer, {
             id: metadata.id,
@@ -268,7 +351,9 @@ export class PeerSession {
             mediaType: metadata.mediaType,
             size: metadata.size,
             sha256: metadata.sha256,
-            verified: digest === metadata.sha256 && blob.size === metadata.size,
+            verified:
+              digest === metadata.sha256 &&
+              blob.size === metadata.size,
             blob
           });
           channel.close();
