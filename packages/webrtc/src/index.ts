@@ -1,4 +1,15 @@
 export {
+  AdaptiveVideoPolicy,
+  applyVideoAdaptation,
+  videoEncodingTarget,
+  videoPublicationKind
+} from "./adaptive-video";
+export type {
+  VideoAdaptationTier,
+  VideoEncodingTarget,
+  VideoPublicationKind
+} from "./adaptive-video";
+export {
   applyCodecPreferences,
   getPreferredAudioCodecs,
   getPreferredVideoCodecs,
