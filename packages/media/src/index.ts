@@ -1,4 +1,5 @@
 export type AudioMode = "speech" | "original";
+export type ScreenShareMode = "detail" | "motion";
 
 export interface LocalMediaOptions {
   audioMode?: AudioMode;
@@ -59,16 +60,26 @@ export async function acquireLocalMedia(
   return stream;
 }
 
-export async function acquireDisplayMedia(): Promise<MediaStream> {
+export interface DisplayMediaOptions {
+  mode?: ScreenShareMode;
+}
+
+export async function acquireDisplayMedia(
+  options: DisplayMediaOptions = {}
+): Promise<MediaStream> {
+  const { mode = "detail" } = options;
+  const frameRate =
+    mode === "motion"
+      ? { ideal: 30, max: 60 }
+      : { ideal: 10, max: 15 };
+
   const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: {
-      frameRate: { ideal: 30, max: 60 }
-    },
+    video: { frameRate },
     audio: true
   });
 
   for (const track of stream.getVideoTracks()) {
-    track.contentHint = "detail";
+    track.contentHint = mode;
   }
 
   return stream;
