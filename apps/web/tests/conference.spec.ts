@@ -14,7 +14,8 @@ async function expectRemoteMedia(
     .poll(
       () =>
         tile.locator("video").evaluate((element) => {
-          const stream = element.srcObject as MediaStream | null;
+          const video = element as HTMLVideoElement;
+          const stream = video.srcObject as MediaStream | null;
           return {
             audio: stream?.getAudioTracks().length ?? 0,
             video: stream?.getVideoTracks().length ?? 0
