@@ -21,10 +21,12 @@ export { PeerSession } from "./peer-session";
 export type { PeerSessionEvents, PeerSessionOptions } from "./peer-session";
 export {
   classifyConnectionQuality,
+  classifyIcePath,
   sampleConnectionQuality
 } from "./quality";
 export type {
   ConnectionQualityInput,
   ConnectionQualityLevel,
-  ConnectionQualitySnapshot
+  ConnectionQualitySnapshot,
+  IcePath
 } from "./quality";
