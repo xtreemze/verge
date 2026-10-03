@@ -271,17 +271,20 @@ export class PeerSession {
     });
   }
 
-  async replaceVideoTrack(
+  async replaceTrack(
+    kind: "audio" | "video",
     track: MediaStreamTrack
   ): Promise<void> {
     const sender = this.connection
       .getSenders()
-      .find(
-        (candidate) =>
-          candidate.track?.kind === "video"
-      );
-    await sender?.replaceTrack(track);
-    if (sender) {
+      .find((candidate) => candidate.track?.kind === kind);
+    if (!sender) {
+      throw new Error(`No active ${kind} sender is available.`);
+    }
+
+    await sender.replaceTrack(track);
+
+    if (kind === "video") {
       try {
         await applyVideoAdaptation(
           sender,
@@ -291,6 +294,18 @@ export class PeerSession {
         // Encoding adaptation is best-effort across WebRTC implementations.
       }
     }
+  }
+
+  async replaceVideoTrack(
+    track: MediaStreamTrack
+  ): Promise<void> {
+    await this.replaceTrack("video", track);
+  }
+
+  async replaceAudioTrack(
+    track: MediaStreamTrack
+  ): Promise<void> {
+    await this.replaceTrack("audio", track);
   }
 
   close(): void {

@@ -44,5 +44,6 @@ export interface ConferenceTransport {
   sendChat(text: string): ChatMessage;
   sendFile(file: File): Promise<void>;
   replaceVideoTrack(track: MediaStreamTrack): Promise<void>;
+  replaceAudioTrack(track: MediaStreamTrack): Promise<void>;
   close(): void;
 }

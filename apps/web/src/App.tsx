@@ -10,13 +10,19 @@ import {
   type ConferenceTransport
 } from "@verge/conference";
 import {
+  acquireCameraTrack,
   acquireDisplayMedia,
   acquireLocalMedia,
+  acquireMicrophoneTrack,
+  enumerateMediaDevices,
+  setAudioOutputDevice,
   setNativeBackgroundBlur,
   setTrackEnabled,
   stopStream,
+  supportsAudioOutputSelection,
   supportsNativeBackgroundBlur,
   type AudioMode,
+  type MediaDeviceGroups,
   type ScreenShareMode
 } from "@verge/media";
 import type {
@@ -67,11 +73,18 @@ function signalingUrl(): string {
 function attachVideo(
   element: HTMLVideoElement,
   stream: MediaStream,
-  muted = false
+  muted = false,
+  outputDeviceId = ""
 ): void {
   element.srcObject = stream;
   element.muted = muted;
   void element.play().catch(() => undefined);
+
+  if (!muted && outputDeviceId) {
+    void setAudioOutputDevice(element, outputDeviceId).catch(
+      () => undefined
+    );
+  }
 }
 
 function connectionQualityTitle(
@@ -121,6 +134,17 @@ export function App() {
     createSignal<ScreenShareMode>("detail");
   const [blurEnabled, setBlurEnabled] = createSignal(false);
   const [blurAvailable, setBlurAvailable] = createSignal(false);
+  const [cameras, setCameras] = createSignal<MediaDeviceInfo[]>([]);
+  const [microphones, setMicrophones] =
+    createSignal<MediaDeviceInfo[]>([]);
+  const [speakers, setSpeakers] = createSignal<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = createSignal("");
+  const [selectedMicrophoneId, setSelectedMicrophoneId] =
+    createSignal("");
+  const [selectedSpeakerId, setSelectedSpeakerId] = createSignal("");
+  const [switchingDevice, setSwitchingDevice] = createSignal(false);
+  const audioOutputSelectionAvailable =
+    supportsAudioOutputSelection();
 
   let conference: ConferenceTransport | undefined;
   let displayStream: MediaStream | undefined;
@@ -138,6 +162,59 @@ export function App() {
       ...current.filter((item) => item.peer.id !== peer.id),
       { peer, stream }
     ]);
+  }
+
+  async function applySpeakerToRemoteVideos(
+    deviceId: string
+  ): Promise<void> {
+    const elements =
+      document.querySelectorAll<HTMLVideoElement>(
+        "video[data-remote-video]"
+      );
+    await Promise.all(
+      Array.from(elements, (element) =>
+        setAudioOutputDevice(element, deviceId)
+      )
+    );
+  }
+
+  async function refreshDevices(): Promise<
+    MediaDeviceGroups | undefined
+  > {
+    try {
+      const devices = await enumerateMediaDevices();
+      setCameras(devices.cameras);
+      setMicrophones(devices.microphones);
+      setSpeakers(devices.speakers);
+
+      if (audioOutputSelectionAvailable) {
+        const current = selectedSpeakerId();
+        const stillAvailable = devices.speakers.some(
+          (device) => device.deviceId === current
+        );
+
+        if (!current || !stillAvailable) {
+          const fallback =
+            devices.speakers.find(
+              (device) => device.deviceId === "default"
+            ) ?? devices.speakers[0];
+          const fallbackId = fallback?.deviceId ?? "";
+          setSelectedSpeakerId(fallbackId);
+
+          if (current && fallbackId) {
+            await applySpeakerToRemoteVideos(fallbackId);
+            setStatus(
+              "Selected speaker is unavailable; using the default output."
+            );
+          }
+        }
+      }
+
+      return devices;
+    } catch {
+      // Enumeration can fail before permission or during OS changes.
+      return undefined;
+    }
   }
 
   async function join(): Promise<void> {
@@ -158,9 +235,17 @@ export function App() {
       const stream = await acquireLocalMedia({ audioMode: audioMode() });
       setLocalStream(stream);
       const cameraTrack = stream.getVideoTracks()[0];
+      const microphoneTrack = stream.getAudioTracks()[0];
+      setSelectedCameraId(
+        cameraTrack?.getSettings().deviceId ?? ""
+      );
+      setSelectedMicrophoneId(
+        microphoneTrack?.getSettings().deviceId ?? ""
+      );
       setBlurAvailable(
         cameraTrack ? supportsNativeBackgroundBlur(cameraTrack) : false
       );
+      await refreshDevices();
 
       const iceServers = await loadIceServers();
       conference = createConferenceTransport({
@@ -259,6 +344,169 @@ export function App() {
     setCameraEnabled(next);
   }
 
+  async function switchCamera(deviceId: string): Promise<void> {
+    const stream = localStream();
+    if (!stream || !deviceId || switchingDevice()) return;
+
+    setSwitchingDevice(true);
+    setStatus("Switching camera…");
+    let nextTrack: MediaStreamTrack | undefined;
+    try {
+      nextTrack = await acquireCameraTrack({ deviceId });
+      nextTrack.enabled = cameraEnabled();
+
+      const blurSupported =
+        supportsNativeBackgroundBlur(nextTrack);
+      if (blurEnabled() && blurSupported) {
+        await setNativeBackgroundBlur(nextTrack, true);
+      } else if (blurEnabled() && !blurSupported) {
+        setBlurEnabled(false);
+      }
+      setBlurAvailable(blurSupported);
+
+      const previous = stream.getVideoTracks()[0];
+      if (!screenSharing() && conference) {
+        await conference.replaceVideoTrack(nextTrack);
+      }
+      if (previous) {
+        stream.removeTrack(previous);
+        previous.stop();
+      }
+      stream.addTrack(nextTrack);
+      setSelectedCameraId(
+        nextTrack.getSettings().deviceId ?? deviceId
+      );
+      await refreshDevices();
+      setStatus("Camera switched");
+    } catch (error) {
+      nextTrack?.stop();
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to switch camera."
+      );
+    } finally {
+      setSwitchingDevice(false);
+    }
+  }
+
+  async function switchMicrophone(
+    deviceId: string
+  ): Promise<void> {
+    const stream = localStream();
+    if (!stream || !deviceId || switchingDevice()) return;
+
+    setSwitchingDevice(true);
+    setStatus("Switching microphone…");
+    let nextTrack: MediaStreamTrack | undefined;
+    try {
+      nextTrack = await acquireMicrophoneTrack({
+        deviceId,
+        audioMode: audioMode()
+      });
+      nextTrack.enabled = micEnabled();
+
+      if (conference) {
+        await conference.replaceAudioTrack(nextTrack);
+      }
+
+      const previous = stream.getAudioTracks()[0];
+      if (previous) {
+        stream.removeTrack(previous);
+        previous.stop();
+      }
+      stream.addTrack(nextTrack);
+      setSelectedMicrophoneId(
+        nextTrack.getSettings().deviceId ?? deviceId
+      );
+      await refreshDevices();
+      setStatus("Microphone switched");
+    } catch (error) {
+      nextTrack?.stop();
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to switch microphone."
+      );
+    } finally {
+      setSwitchingDevice(false);
+    }
+  }
+
+  async function switchSpeaker(deviceId: string): Promise<void> {
+    if (
+      !audioOutputSelectionAvailable ||
+      !deviceId ||
+      switchingDevice()
+    ) {
+      return;
+    }
+
+    const previous = selectedSpeakerId();
+    setSwitchingDevice(true);
+    setSelectedSpeakerId(deviceId);
+    setStatus("Switching speaker…");
+
+    try {
+      await applySpeakerToRemoteVideos(deviceId);
+      setStatus("Speaker switched");
+    } catch (error) {
+      setSelectedSpeakerId(previous);
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to switch speaker."
+      );
+    } finally {
+      setSwitchingDevice(false);
+    }
+  }
+
+  async function recoverDevicesAfterChange(): Promise<void> {
+    if (!connected() || switchingDevice()) {
+      await refreshDevices();
+      return;
+    }
+
+    const devices = await refreshDevices();
+    if (!devices) return;
+
+    const cameraId = selectedCameraId();
+    if (
+      cameraId &&
+      !devices.cameras.some(
+        (device) => device.deviceId === cameraId
+      )
+    ) {
+      const fallback = devices.cameras[0];
+      if (fallback) {
+        await switchCamera(fallback.deviceId);
+        setStatus(
+          "Selected camera was removed; switched to another camera."
+        );
+      }
+    }
+
+    const microphoneId = selectedMicrophoneId();
+    if (
+      microphoneId &&
+      !devices.microphones.some(
+        (device) => device.deviceId === microphoneId
+      )
+    ) {
+      const fallback =
+        devices.microphones.find(
+          (device) => device.deviceId === "default"
+        ) ?? devices.microphones[0];
+      if (fallback) {
+        await switchMicrophone(fallback.deviceId);
+        setStatus(
+          "Selected microphone was removed; switched to another microphone."
+        );
+      }
+    }
+  }
+
   async function toggleBlur(): Promise<void> {
     const track = localStream()?.getVideoTracks()[0];
     if (!track) return;
@@ -336,7 +584,19 @@ export function App() {
     setStatus("Invite link copied");
   }
 
+  const handleDeviceChange = () => {
+    void recoverDevicesAfterChange();
+  };
+  navigator.mediaDevices.addEventListener(
+    "devicechange",
+    handleDeviceChange
+  );
+
   onCleanup(() => {
+    navigator.mediaDevices.removeEventListener(
+      "devicechange",
+      handleDeviceChange
+    );
     conference?.close();
     if (displayStream) stopStream(displayStream);
     const stream = localStream();
@@ -438,7 +698,15 @@ export function App() {
                   {(item) => (
                     <article class="video-tile">
                       <video
-                        ref={(element) => attachVideo(element, item.stream)}
+                        ref={(element) => {
+                          element.dataset.remoteVideo = "";
+                          attachVideo(
+                            element,
+                            item.stream,
+                            false,
+                            selectedSpeakerId()
+                          );
+                        }}
                         autoplay
                         playsinline
                       />
@@ -523,6 +791,85 @@ export function App() {
                   {blurEnabled() ? "Remove blur" : "Background blur"}
                 </button>
               </div>
+
+              <details class="device-settings">
+                <summary>Devices</summary>
+                <div class="device-grid">
+                  <label>
+                    Camera
+                    <select
+                      value={selectedCameraId()}
+                      disabled={
+                        switchingDevice() || cameras().length === 0
+                      }
+                      onChange={(event) =>
+                        void switchCamera(event.currentTarget.value)
+                      }
+                    >
+                      <For each={cameras()}>
+                        {(device, index) => (
+                          <option value={device.deviceId}>
+                            {device.label ||
+                              `Camera ${index() + 1}`}
+                          </option>
+                        )}
+                      </For>
+                    </select>
+                  </label>
+                  <label>
+                    Microphone
+                    <select
+                      value={selectedMicrophoneId()}
+                      disabled={
+                        switchingDevice() ||
+                        microphones().length === 0
+                      }
+                      onChange={(event) =>
+                        void switchMicrophone(
+                          event.currentTarget.value
+                        )
+                      }
+                    >
+                      <For each={microphones()}>
+                        {(device, index) => (
+                          <option value={device.deviceId}>
+                            {device.label ||
+                              `Microphone ${index() + 1}`}
+                          </option>
+                        )}
+                      </For>
+                    </select>
+                  </label>
+                  <Show
+                    when={
+                      audioOutputSelectionAvailable &&
+                      speakers().length > 0
+                    }
+                  >
+                    <label>
+                      Speaker
+                      <select
+                        value={selectedSpeakerId()}
+                        disabled={switchingDevice()}
+                        onChange={(event) =>
+                          void switchSpeaker(
+                            event.currentTarget.value
+                          )
+                        }
+                      >
+                        <For each={speakers()}>
+                          {(device, index) => (
+                            <option value={device.deviceId}>
+                              {device.label ||
+                                `Speaker ${index() + 1}`}
+                            </option>
+                          )}
+                        </For>
+                      </select>
+                    </label>
+                  </Show>
+                </div>
+              </details>
 
               <details class="diagnostics">
                 <summary>Media capabilities</summary>

@@ -8,6 +8,24 @@ export interface LocalMediaOptions {
   frameRate?: number;
 }
 
+export interface MediaDeviceGroups {
+  cameras: MediaDeviceInfo[];
+  microphones: MediaDeviceInfo[];
+  speakers: MediaDeviceInfo[];
+}
+
+export interface CameraTrackOptions {
+  deviceId?: string;
+  width?: number;
+  height?: number;
+  frameRate?: number;
+}
+
+export interface MicrophoneTrackOptions {
+  deviceId?: string;
+  audioMode?: AudioMode;
+}
+
 function speechAudioConstraints(): MediaTrackConstraints {
   return {
     channelCount: { ideal: 1 },
@@ -26,6 +44,94 @@ function originalAudioConstraints(): MediaTrackConstraints {
   };
 }
 
+function audioConstraints(
+  audioMode: AudioMode,
+  deviceId?: string
+): MediaTrackConstraints {
+  return {
+    ...(audioMode === "speech"
+      ? speechAudioConstraints()
+      : originalAudioConstraints()),
+    ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+  };
+}
+
+export async function enumerateMediaDevices(): Promise<MediaDeviceGroups> {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return {
+    cameras: devices.filter((device) => device.kind === "videoinput"),
+    microphones: devices.filter((device) => device.kind === "audioinput"),
+    speakers: devices.filter((device) => device.kind === "audiooutput")
+  };
+}
+
+interface SinkSelectableMediaElement extends HTMLMediaElement {
+  setSinkId(deviceId: string): Promise<void>;
+}
+
+export function supportsAudioOutputSelection(): boolean {
+  return (
+    typeof HTMLMediaElement !== "undefined" &&
+    "setSinkId" in HTMLMediaElement.prototype
+  );
+}
+
+export async function setAudioOutputDevice(
+  element: HTMLMediaElement,
+  deviceId: string
+): Promise<boolean> {
+  if (!supportsAudioOutputSelection()) return false;
+  await (element as SinkSelectableMediaElement).setSinkId(deviceId);
+  return true;
+}
+
+export async function acquireCameraTrack(
+  options: CameraTrackOptions = {}
+): Promise<MediaStreamTrack> {
+  const {
+    deviceId,
+    width = 1280,
+    height = 720,
+    frameRate = 30
+  } = options;
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      width: { ideal: width },
+      height: { ideal: height },
+      frameRate: { ideal: frameRate, max: 60 }
+    }
+  });
+
+  const track = stream.getVideoTracks()[0];
+  if (!track) {
+    stopStream(stream);
+    throw new Error("Selected camera did not provide a video track.");
+  }
+  track.contentHint = "motion";
+  return track;
+}
+
+export async function acquireMicrophoneTrack(
+  options: MicrophoneTrackOptions = {}
+): Promise<MediaStreamTrack> {
+  const { deviceId, audioMode = "speech" } = options;
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: audioConstraints(audioMode, deviceId),
+    video: false
+  });
+
+  const track = stream.getAudioTracks()[0];
+  if (!track) {
+    stopStream(stream);
+    throw new Error("Selected microphone did not provide an audio track.");
+  }
+  track.contentHint = audioMode === "speech" ? "speech" : "music";
+  return track;
+}
+
 export async function acquireLocalMedia(
   options: LocalMediaOptions = {}
 ): Promise<MediaStream> {
@@ -37,10 +143,7 @@ export async function acquireLocalMedia(
   } = options;
 
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio:
-      audioMode === "speech"
-        ? speechAudioConstraints()
-        : originalAudioConstraints(),
+    audio: audioConstraints(audioMode),
     video: {
       width: { ideal: width },
       height: { ideal: height },
