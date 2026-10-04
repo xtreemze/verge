@@ -1,0 +1,16 @@
+FROM node:24-alpine
+
+RUN npm install --global pnpm@12.8.0
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY apps/signaling ./apps/signaling
+COPY packages/protocol ./packages/protocol
+
+RUN pnpm install --frozen-lockfile --prod --filter @verge/signaling...
+
+ENV NODE_ENV=production
+ENV PORT=8787
+EXPOSE 8787
+
+CMD ["pnpm", "--filter", "@verge/signaling", "start"]
