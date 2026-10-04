@@ -46,9 +46,10 @@ With two USB-debuggable Android phones attached and `pnpm dev` running:
 
 ```bash
 pnpm android:pair
+pnpm android:certify
 ```
 
-This uses ADB reverse for the web/signaling ports, opens both Chrome instances in the same room, and exposes their DevTools targets on host ports 9222 and 9223. See `docs/android-adb-mvp.md` for the acceptance checklist and TURN/network notes.
+`android:pair` opens both phones in one room. `android:certify` additionally drives the real Android Chrome sessions over DevTools Protocol, checks WebRTC media-track presence, ICE path, chat, verified file exchange, controls, camera switching, and peer cleanup, then writes JSON/JUnit reports plus screenshots and logs under `artifacts/android-certification/`. Physical audio/video quality and Android system interactions remain explicit manual checks. See `docs/android-adb-mvp.md`.
 
 ## Production MVP
 
