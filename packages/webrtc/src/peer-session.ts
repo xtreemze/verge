@@ -26,7 +26,8 @@ import {
   parseFileControlMessage,
   sha256Blob,
   type FileDone,
-  type FileMetadata
+  type FileMetadata,
+  type FileTransferProgress
 } from "./file-transfer";
 
 export interface PeerSessionEvents {
@@ -37,6 +38,10 @@ export interface PeerSessionEvents {
   onQualityChange?(
     peer: PeerSummary,
     quality: ConnectionQualitySnapshot
+  ): void;
+  onFileProgress?(
+    peer: PeerSummary,
+    progress: FileTransferProgress
   ): void;
 }
 
@@ -86,6 +91,8 @@ export class PeerSession {
   #restartAttempts = 0;
   #restartTimer: ReturnType<typeof setTimeout> | undefined;
   #closed = false;
+  #outgoingFileChannels = new Map<string, RTCDataChannel>();
+  #cancelledFileTransfers = new Set<string>();
 
   constructor(options: PeerSessionOptions) {
     this.peer = options.peer;
@@ -201,14 +208,27 @@ export class PeerSession {
     this.#chatChannel.send(JSON.stringify(message));
   }
 
-  async sendFile(file: File): Promise<void> {
+  async sendFile(
+    file: File,
+    transferId = crypto.randomUUID()
+  ): Promise<void> {
+    const id = transferId;
+    this.#events.onFileProgress?.(this.peer, {
+      id,
+      name: file.name,
+      direction: "send",
+      state: "hashing",
+      bytesTransferred: 0,
+      totalBytes: file.size
+    });
     const digest = await sha256Blob(file);
-    const id = crypto.randomUUID();
     const channel = this.connection.createDataChannel(
       `file:${id}`,
       { ordered: true }
     );
     channel.binaryType = "arraybuffer";
+
+    this.#outgoingFileChannels.set(id, channel);
 
     const metadata: FileMetadata = {
       kind: "meta",
@@ -228,28 +248,66 @@ export class PeerSession {
         async () => {
           try {
             channel.send(JSON.stringify(metadata));
+            this.#events.onFileProgress?.(this.peer, {
+              id,
+              name: file.name,
+              direction: "send",
+              state: "transferring",
+              bytesTransferred: 0,
+              totalBytes: file.size
+            });
             for (
               let offset = 0;
               offset < file.size;
               offset += FILE_CHUNK_SIZE
             ) {
+              if (this.#cancelledFileTransfers.has(id)) {
+                throw new DOMException(
+                  "File transfer cancelled",
+                  "AbortError"
+                );
+              }
               await waitForWritable(channel);
-              channel.send(
-                await file
-                  .slice(
-                    offset,
-                    Math.min(
-                      offset + FILE_CHUNK_SIZE,
-                      file.size
-                    )
-                  )
-                  .arrayBuffer()
+              const end = Math.min(
+                offset + FILE_CHUNK_SIZE,
+                file.size
               );
+              channel.send(
+                await file.slice(offset, end).arrayBuffer()
+              );
+              this.#events.onFileProgress?.(this.peer, {
+                id,
+                name: file.name,
+                direction: "send",
+                state: "transferring",
+                bytesTransferred: end,
+                totalBytes: file.size
+              });
             }
             const done: FileDone = { kind: "done" };
             channel.send(JSON.stringify(done));
+            this.#events.onFileProgress?.(this.peer, {
+              id,
+              name: file.name,
+              direction: "send",
+              state: "completed",
+              bytesTransferred: file.size,
+              totalBytes: file.size
+            });
+            this.#outgoingFileChannels.delete(id);
             resolve();
           } catch (error) {
+            const cancelled =
+              this.#cancelledFileTransfers.delete(id);
+            this.#outgoingFileChannels.delete(id);
+            this.#events.onFileProgress?.(this.peer, {
+              id,
+              name: file.name,
+              direction: "send",
+              state: cancelled ? "cancelled" : "failed",
+              bytesTransferred: 0,
+              totalBytes: file.size
+            });
             reject(error);
           }
         },
@@ -264,6 +322,17 @@ export class PeerSession {
         { once: true }
       );
     });
+  }
+
+  cancelFileTransfer(id: string): void {
+    this.#cancelledFileTransfers.add(id);
+    const channel = this.#outgoingFileChannels.get(id);
+    if (!channel) return;
+    if (channel.readyState === "open") {
+      channel.send(JSON.stringify({ kind: "cancel" }));
+    }
+    channel.close();
+    this.#outgoingFileChannels.delete(id);
   }
 
   async replaceTrack(
@@ -311,6 +380,10 @@ export class PeerSession {
       this.#qualityTimer = undefined;
     }
     this.#chatChannel?.close();
+    for (const channel of this.#outgoingFileChannels.values()) {
+      channel.close();
+    }
+    this.#outgoingFileChannels.clear();
     this.connection.close();
   }
 
@@ -479,6 +552,32 @@ export class PeerSession {
                 throw new Error("Duplicate file transfer metadata.");
               }
               receiver = await IncomingFileReceiver.create(message);
+              this.#events.onFileProgress?.(this.peer, {
+                id: message.id,
+                name: message.name,
+                direction: "receive",
+                state: "transferring",
+                bytesTransferred: 0,
+                totalBytes: message.size
+              });
+              return;
+            }
+
+            if (message.kind === "cancel") {
+              const active = receiver;
+              receiver = undefined;
+              if (active) {
+                await active.abort();
+                this.#events.onFileProgress?.(this.peer, {
+                  id: active.metadata.id,
+                  name: active.metadata.name,
+                  direction: "receive",
+                  state: "cancelled",
+                  bytesTransferred: active.receivedBytes,
+                  totalBytes: active.metadata.size
+                });
+              }
+              channel.close();
               return;
             }
 
@@ -489,6 +588,14 @@ export class PeerSession {
               const completed = receiver;
               receiver = undefined;
               const file = await completed.finish();
+              this.#events.onFileProgress?.(this.peer, {
+                id: file.id,
+                name: file.name,
+                direction: "receive",
+                state: "completed",
+                bytesTransferred: file.size,
+                totalBytes: file.size
+              });
               this.#events.onFile(this.peer, file);
               channel.close();
             }
@@ -500,6 +607,14 @@ export class PeerSession {
               throw new Error("File bytes arrived before metadata.");
             }
             await receiver.write(event.data);
+            this.#events.onFileProgress?.(this.peer, {
+              id: receiver.metadata.id,
+              name: receiver.metadata.name,
+              direction: "receive",
+              state: "transferring",
+              bytesTransferred: receiver.receivedBytes,
+              totalBytes: receiver.metadata.size
+            });
           }
         })
         .catch(async () => {
