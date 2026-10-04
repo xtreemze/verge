@@ -38,6 +38,16 @@ pnpm dev
 
 The web client runs on http://localhost:5173 and the signaling service on ws://localhost:8787.
 
+### Two-phone Android smoke test
+
+With two USB-debuggable Android phones attached and `pnpm dev` running:
+
+```bash
+pnpm android:pair
+```
+
+This uses ADB reverse for the web/signaling ports, opens both Chrome instances in the same room, and exposes their DevTools targets on host ports 9222 and 9223. See `docs/android-adb-mvp.md` for the acceptance checklist and TURN/network notes.
+
 ## Landing and onboarding site
 
 The static landing and onboarding experience lives in `apps/site` and is built with Astro on Vite.
