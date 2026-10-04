@@ -16,7 +16,12 @@ export interface IceCandidate {
 }
 
 export type ClientMessage =
-  | { type: "join"; roomId: string; displayName: string }
+  | {
+      type: "join";
+      roomId: string;
+      displayName: string;
+      invite?: string;
+    }
   | {
       type: "signal";
       to: string;
@@ -77,6 +82,7 @@ export function createRoomId(): string {
   ).join("");
 }
 
+const MAX_INVITE_LENGTH = 4_096;
 const MAX_SDP_LENGTH = 220_000;
 const MAX_CANDIDATE_LENGTH = 8_192;
 const MAX_MID_LENGTH = 256;
@@ -227,10 +233,15 @@ export function parseClientMessage(
         !hasOnlyKeys(value, [
           "type",
           "roomId",
-          "displayName"
+          "displayName",
+          "invite"
         ]) ||
         typeof value.roomId !== "string" ||
         typeof value.displayName !== "string" ||
+        (value.invite !== undefined &&
+          (typeof value.invite !== "string" ||
+            value.invite.length < 1 ||
+            value.invite.length > MAX_INVITE_LENGTH)) ||
         !isValidRoomId(value.roomId) ||
         !isValidDisplayName(value.displayName)
       ) {
@@ -239,7 +250,10 @@ export function parseClientMessage(
       return {
         type: "join",
         roomId: value.roomId,
-        displayName: value.displayName.trim()
+        displayName: value.displayName.trim(),
+        ...(typeof value.invite === "string"
+          ? { invite: value.invite }
+          : {})
       };
 
     case "leave":
