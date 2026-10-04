@@ -36,6 +36,15 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Validate production Compose
+        run: docker compose --env-file deploy/.env.production.example -f deploy/compose.yml config
+
+      - name: Build production web image
+        run: docker build -f deploy/Dockerfile.web -t verge-web:mvp .
+
+      - name: Build production signaling image
+        run: docker build -f deploy/Dockerfile.signaling -t verge-signaling:mvp .
+
       - name: Install Playwright Chromium
         run: pnpm --filter @verge/web exec playwright install --with-deps chromium
 
