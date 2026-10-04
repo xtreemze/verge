@@ -14,7 +14,8 @@
     "test:e2e": "pnpm --filter @verge/web test:e2e",
     "desktop": "pnpm --filter @verge/desktop tauri dev",
     "site:dev": "pnpm --filter @verge/site dev",
-    "site:build": "pnpm --filter @verge/site build"
+    "site:build": "pnpm --filter @verge/site build",
+    "android:pair": "bash scripts/adb-two-phone-mvp.sh"
   },
   "devDependencies": {
     "typescript": "7.0.2",
