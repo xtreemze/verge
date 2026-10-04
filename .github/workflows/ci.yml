@@ -31,7 +31,12 @@ jobs:
         run: pnpm test
 
       - name: Android harness syntax
-        run: bash -n scripts/adb-two-phone-mvp.sh
+        run: |
+          bash -n scripts/adb-two-phone-mvp.sh
+          node --check scripts/android-certify.mjs
+
+      - name: Android certification helper tests
+        run: pnpm test:android-certify
 
       - name: Build
         run: pnpm build
