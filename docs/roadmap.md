@@ -31,7 +31,7 @@
 
 ## Post-MVP hardening
 
-- [ ] room/invite authentication (#19)
+- [x] signed expiring room/invite authentication (#19)
 - [ ] software background segmentation fallback when native blur is unavailable (#5)
 - [ ] resumable file offsets/acknowledgements after interruption (#6)
 - [ ] Wi-Fi ↔ cellular network handover certification (#41)

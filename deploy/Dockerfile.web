@@ -7,6 +7,7 @@ RUN pnpm install --frozen-lockfile
 
 ENV VITE_SIGNALING_URL=/ws
 ENV VITE_ICE_CONFIG_URL=/api/ice
+ENV VITE_ROOM_INVITE_URL=/api/rooms
 RUN pnpm --filter @verge/web build
 
 FROM caddy:2.10.2-alpine

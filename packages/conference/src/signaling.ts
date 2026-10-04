@@ -9,6 +9,7 @@ export interface SignalingLifecycleEvents {
 interface ActiveSession {
   roomId: string;
   displayName: string;
+  invite?: string;
 }
 
 export class SignalingClient {
@@ -26,9 +27,17 @@ export class SignalingClient {
     private readonly lifecycle: SignalingLifecycleEvents = {}
   ) {}
 
-  async connect(roomId: string, displayName: string): Promise<void> {
+  async connect(
+    roomId: string,
+    displayName: string,
+    invite?: string
+  ): Promise<void> {
     this.#closedByUser = false;
-    this.#session = { roomId, displayName };
+    this.#session = {
+      roomId,
+      displayName,
+      ...(invite ? { invite } : {})
+    };
     await this.#openSocket();
   }
 
@@ -75,7 +84,10 @@ export class SignalingClient {
           JSON.stringify({
             type: "join",
             roomId: session.roomId,
-            displayName: session.displayName
+            displayName: session.displayName,
+            ...(session.invite
+              ? { invite: session.invite }
+              : {})
           } satisfies ClientMessage)
         );
 

@@ -1,7 +1,7 @@
 {$VERGE_DOMAIN} {
   encode zstd gzip
 
-  @control path /ws /api/ice /healthz
+  @control path /ws /api/ice /api/rooms /healthz
   reverse_proxy @control signaling:8787
 
   root * /srv

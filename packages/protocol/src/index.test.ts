@@ -31,6 +31,33 @@ describe("parseClientMessage", () => {
     });
   });
 
+  it("accepts a bounded invitation token on join", () => {
+    expect(
+      parseClientMessage({
+        type: "join",
+        roomId: "room_42",
+        displayName: "Carlos",
+        invite: "v1.payload.signature"
+      })
+    ).toEqual({
+      type: "join",
+      roomId: "room_42",
+      displayName: "Carlos",
+      invite: "v1.payload.signature"
+    });
+  });
+
+  it("rejects oversized invitation tokens", () => {
+    expect(
+      parseClientMessage({
+        type: "join",
+        roomId: "room_42",
+        displayName: "Carlos",
+        invite: "x".repeat(4_097)
+      })
+    ).toBeUndefined();
+  });
+
   it("rejects unknown fields", () => {
     expect(
       parseClientMessage({
