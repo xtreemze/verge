@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createIceConfiguration,
   turnCredentialOptionsFromEnv
-} from "./turn-credentials";
+} from "./turn-credentials.ts";
 
 describe("TURN credential configuration", () => {
   it("creates coturn REST credentials with a bounded expiry", () => {
