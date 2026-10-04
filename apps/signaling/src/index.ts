@@ -445,7 +445,8 @@ server.on("connection", (socket) => {
           socket,
           context,
           message.roomId,
-          message.displayName
+          message.displayName,
+          message.invite
         );
         break;
       case "signal":
