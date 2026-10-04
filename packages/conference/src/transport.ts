@@ -33,6 +33,7 @@ export interface ConferenceTransportEvents {
     peer: PeerSummary,
     progress: FileTransferProgress
   ): void;
+  onStatus?(message: string): void;
   onError?(message: string): void;
 }
 
