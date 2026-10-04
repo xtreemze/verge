@@ -167,9 +167,20 @@ export interface DisplayMediaOptions {
   mode?: ScreenShareMode;
 }
 
+export function supportsDisplayCapture(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getDisplayMedia === "function"
+  );
+}
+
 export async function acquireDisplayMedia(
   options: DisplayMediaOptions = {}
 ): Promise<MediaStream> {
+  if (!supportsDisplayCapture()) {
+    throw new Error("Screen sharing is unavailable in this browser.");
+  }
+
   const { mode = "detail" } = options;
   const frameRate =
     mode === "motion"
