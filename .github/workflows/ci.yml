@@ -41,3 +41,24 @@ jobs:
 
       - name: Browser smoke tests
         run: pnpm test:e2e
+
+      - name: Start coturn relay
+        run: >-
+          docker run --rm -d
+          --name verge-coturn
+          --network host
+          coturn/coturn:4.18.0-r0
+          -n
+          --log-file=stdout
+          --realm=verge.test
+          --lt-cred-mech
+          --user=verge:vergepass
+          --fingerprint
+          --no-cli
+          --min-port=49160
+          --max-port=49200
+
+      - name: Browser TURN relay certification
+        env:
+          VERGE_E2E_RELAY: "1"
+        run: pnpm test:e2e
