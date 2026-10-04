@@ -30,7 +30,7 @@ test("certifies two-peer WebRTC media, chat, files, and cleanup", async ({
   browser,
   page
 }) => {
-  const room = `webrtc-${crypto.randomUUID().slice(0, 8)}`;
+  const room = crypto.randomUUID().replaceAll("-", "");
   const secondContext = await browser.newContext({
     baseURL: "http://127.0.0.1:5173",
     permissions: ["camera", "microphone"]
