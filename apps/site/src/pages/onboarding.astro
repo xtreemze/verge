@@ -221,6 +221,7 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
     const root = document.querySelector("[data-onboarding]");
 
     if (root instanceof HTMLElement) {
+      const configuredAppUrl = root.dataset.appUrl ?? "";
       const capabilityIds = [
         "cap-secure",
         "cap-webrtc",
@@ -339,7 +340,7 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
           // Storage is optional.
         }
 
-        const appUrl = root.dataset.appUrl ?? "";
+        const appUrl = configuredAppUrl;
         if (
           launch instanceof HTMLAnchorElement &&
           openDevelopment instanceof HTMLAnchorElement &&
