@@ -647,13 +647,13 @@ export function App() {
   const handleDeviceChange = () => {
     void recoverDevicesAfterChange();
   };
-  navigator.mediaDevices.addEventListener(
+  navigator.mediaDevices?.addEventListener(
     "devicechange",
     handleDeviceChange
   );
 
   onCleanup(() => {
-    navigator.mediaDevices.removeEventListener(
+    navigator.mediaDevices?.removeEventListener(
       "devicechange",
       handleDeviceChange
     );
