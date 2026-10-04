@@ -103,4 +103,7 @@ LAN for the first smoke test unless TURN is configured.
 Chrome DevTools targets:
   http://localhost:9222/json
   http://localhost:9223/json
+
+To automate the browser-verifiable portion of this checklist, run:
+  pnpm android:certify -- $serial_a $serial_b
 EOF
