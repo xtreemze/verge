@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - "apps/site/**"
+      - "packages/protocol/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "tsconfig.base.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -24,13 +29,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Typecheck, build, and upload Astro site
+      - name: Test, typecheck, build, and upload Astro site
         uses: withastro/action@v6
         with:
           path: ./apps/site
           node-version: 24
           package-manager: pnpm@12.8.0
-          build-cmd: pnpm run typecheck && pnpm run build
+          build-cmd: pnpm run test && pnpm run typecheck && pnpm run build
         env:
           SITE_URL: https://xtreemze.github.io
           BASE_PATH: /verge
