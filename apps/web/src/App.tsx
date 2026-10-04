@@ -638,6 +638,7 @@ export function App() {
 
   async function copyInvite(): Promise<void> {
     const url = new URL(location.href);
+    url.search = "";
     url.searchParams.set("room", roomId());
     await navigator.clipboard.writeText(url.toString());
     setStatus("Invite link copied");
@@ -818,7 +819,7 @@ export function App() {
                   <select
                     aria-label="Screen share quality"
                     value={screenShareMode()}
-                    disabled={screenSharing()}
+                    disabled={screenSharing() || !displayCaptureAvailable}
                     onChange={(event) =>
                       setScreenShareMode(
                         event.currentTarget.value as ScreenShareMode
