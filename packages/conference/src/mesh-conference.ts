@@ -47,7 +47,16 @@ export class MeshConference implements ConferenceTransport {
       options.iceServers ?? [{ urls: "stun:stun.l.google.com:19302" }];
     this.#signaling = new SignalingClient(
       options.signalingUrl,
-      (message) => void this.#handleMessage(message)
+      (message) => void this.#handleMessage(message),
+      {
+        onDisconnected: () => {
+          this.#resetSessions();
+          this.#options.onStatus?.("Signaling interrupted · reconnecting…");
+        },
+        onReconnected: () => {
+          this.#options.onStatus?.("Signaling restored · rejoining room…");
+        }
+      }
     );
   }
 
@@ -102,9 +111,16 @@ export class MeshConference implements ConferenceTransport {
   }
 
   close(): void {
-    for (const session of this.#sessions.values()) session.close();
-    this.#sessions.clear();
+    this.#resetSessions();
     this.#signaling.close();
+  }
+
+  #resetSessions(): void {
+    for (const [peerId, session] of this.#sessions) {
+      session.close();
+      this.#options.onPeerLeft?.(peerId);
+    }
+    this.#sessions.clear();
   }
 
   async #handleMessage(message: ServerMessage): Promise<void> {
