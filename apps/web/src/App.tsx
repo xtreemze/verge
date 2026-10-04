@@ -242,7 +242,7 @@ export function App() {
     }
     const normalizedRoomId = roomId().trim();
     if (!isValidRoomId(normalizedRoomId)) {
-      setStatus("Room identifier must be 32 URL-safe characters.");
+      setStatus("Room identifier must be 1–64 URL-safe characters.");
       return;
     }
     if (normalizedRoomId !== roomId()) {
