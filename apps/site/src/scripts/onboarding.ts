@@ -1,4 +1,8 @@
 import {
+  acquireLocalMedia,
+  stopStream
+} from "@verge/media";
+import {
   createRoomId,
   isValidRoomId
 } from "@verge/protocol";
@@ -21,6 +25,9 @@ function browserCapabilities(): BrowserCapabilitySnapshot {
     webrtc,
     userMedia:
       typeof mediaDevices?.getUserMedia === "function",
+    codecPreferences:
+      typeof window.RTCRtpTransceiver === "function" &&
+      typeof RTCRtpTransceiver.prototype.setCodecPreferences === "function",
     dataChannel:
       webrtc &&
       "createDataChannel" in RTCPeerConnection.prototype,
@@ -252,9 +259,7 @@ export function initializeOnboarding(): void {
 
   function stopPreview(): void {
     if (previewStream) {
-      previewStream.getTracks().forEach((track) =>
-        track.stop()
-      );
+      stopStream(previewStream);
       previewStream = undefined;
     }
 
@@ -291,18 +296,9 @@ export function initializeOnboarding(): void {
     }
 
     try {
-      previewStream =
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
+      previewStream = await acquireLocalMedia({
+        audioMode: "speech"
+      });
 
       if (preview instanceof HTMLVideoElement) {
         preview.srcObject = previewStream;

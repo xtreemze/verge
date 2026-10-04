@@ -41,8 +41,9 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
           <h2 id="browser-title">Check the platform surface.</h2>
           <p>
             Core readiness requires a secure context, WebRTC, media
-            capture, data channels, and secure random identifiers.
-            Screen sharing is an optional capability.
+            capture, codec preference control, data channels, and
+            secure random identifiers. Screen sharing is an optional
+            capability.
           </p>
 
           <ul class="capability-list">
@@ -125,10 +126,10 @@ const appUrl = import.meta.env.PUBLIC_VERGE_APP_URL ?? "";
           <div class="step-label"><span>3</span> Devices + handoff</div>
           <h2 id="devices-title">Verify capture before the call.</h2>
           <p>
-            The test requests a camera and speech-oriented microphone
-            stream. Verge itself exposes device selection, native
-            background blur when the browser/device supports it, and
-            an original-audio mode.
+            The test uses the same speech-oriented capture profile as
+            the conference client. Verge itself exposes device
+            selection, native background blur when the browser/device
+            supports it, and an original-audio mode.
           </p>
 
           <div class="device-actions">

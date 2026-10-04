@@ -1,6 +1,6 @@
 # Codec policy
 
-Last reviewed: 2026-10-02.
+Last reviewed: 2026-10-04.
 
 Verge never assumes that a codec exists merely because a browser version can support it. Codec availability and efficiency depend on browser build, OS, hardware acceleration, driver support, capture parameters, and the remote peer.
 
@@ -8,15 +8,10 @@ Verge never assumes that a codec exists merely because a browser version can sup
 
 Before creating an offer or answer, Verge reads `RTCRtpSender.getCapabilities()` and reorders the capabilities passed to `RTCRtpTransceiver.setCodecPreferences()`.
 
-Current video preference:
-
-1. AV1
-2. VP9
-3. HEVC / H.265
-4. H.264
-5. VP8
-
-Opus is preferred for audio.
+The canonical preference ordering lives in
+`packages/webrtc/src/codec-policy.ts` and is consumed by both the
+runtime negotiation adapter and the public site. The current order is
+AV1, VP9, HEVC / H.265, H.264, then VP8. Opus is preferred for audio.
 
 Unknown browser-provided codecs are retained after the preferred codecs instead of being discarded. RTX/RED/ULPFEC repair codecs are retained as well.
 
@@ -26,22 +21,25 @@ The SDP offer/answer exchange remains authoritative: a preferred codec is used o
 
 Chrome supports a broad WebRTC codec set, but encode/decode capability and power efficiency are not uniform across machines. AV1 is especially useful for bandwidth efficiency and detailed screen content, while hardware-backed HEVC or H.264 may be more power-efficient on some systems.
 
-A later quality controller should combine:
+The current quality controller samples `RTCPeerConnection.getStats()`,
+classifies RTT, packet loss, jitter, connection state, and encoder
+quality-limitation reasons, then applies high/medium/low video encoding
+targets with hysteresis. Available outgoing bitrate and the selected ICE
+path are also recorded for diagnostics.
 
-- RTP codec capabilities
-- Media Capabilities smooth/power-efficient signals where available
-- `RTCPeerConnection.getStats()`
-- current packet loss, RTT, and available bitrate
-- encoder quality-limitation reason
-- participant tile size and visibility
-
-Codec preference should not prevent congestion control from reducing bitrate, resolution, or frame rate.
+Future policy can incorporate Media Capabilities power-efficiency signals,
+available bitrate, participant tile size, and visibility more directly.
+Codec preference does not prevent congestion control from reducing bitrate,
+resolution, or frame rate.
 
 ## Screen content
 
 Camera tracks use `contentHint = "motion"`.
 
-Display capture uses `contentHint = "detail"` by default to favor text/UI clarity. A later control should expose a motion-oriented mode for video, animation, or game streaming.
+Display capture exposes two profiles through `@verge/media`: `detail`
+uses `contentHint = "detail"` and favors text/UI clarity at a lower
+frame rate, while `motion` uses `contentHint = "motion"` and requests
+a higher frame rate for video, animation, or game streaming.
 
 ## Compatibility references
 

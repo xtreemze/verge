@@ -1,16 +1,11 @@
+import {
+  PREFERRED_AUDIO_MIME_TYPES,
+  PREFERRED_VIDEO_MIME_TYPES
+} from "./codec-policy";
+
 type CodecCapability = NonNullable<
   ReturnType<typeof RTCRtpSender.getCapabilities>
 >["codecs"][number];
-
-const preferredVideoMimeTypes = [
-  "video/AV1",
-  "video/VP9",
-  "video/H265",
-  "video/H264",
-  "video/VP8"
-] as const;
-
-const preferredAudioMimeTypes = ["audio/opus"] as const;
 
 function rank(mimeType: string, preferred: readonly string[]): number {
   const index = preferred.findIndex(
@@ -33,8 +28,8 @@ export function getPreferredVideoCodecs(): CodecCapability[] {
     .filter((codec) => !/\/(rtx|red|ulpfec)$/i.test(codec.mimeType))
     .toSorted(
       (left, right) =>
-        rank(left.mimeType, preferredVideoMimeTypes) -
-        rank(right.mimeType, preferredVideoMimeTypes)
+        rank(left.mimeType, PREFERRED_VIDEO_MIME_TYPES) -
+        rank(right.mimeType, PREFERRED_VIDEO_MIME_TYPES)
     );
   const repair = codecs.filter((codec) =>
     /\/(rtx|red|ulpfec)$/i.test(codec.mimeType)
@@ -45,8 +40,8 @@ export function getPreferredVideoCodecs(): CodecCapability[] {
 export function getPreferredAudioCodecs(): CodecCapability[] {
   return getSupportedAudioCodecs().toSorted(
     (left, right) =>
-      rank(left.mimeType, preferredAudioMimeTypes) -
-      rank(right.mimeType, preferredAudioMimeTypes)
+      rank(left.mimeType, PREFERRED_AUDIO_MIME_TYPES) -
+      rank(right.mimeType, PREFERRED_AUDIO_MIME_TYPES)
   );
 }
 
