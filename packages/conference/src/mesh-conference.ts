@@ -21,6 +21,7 @@ export interface MeshConferenceOptions
   extends ConferenceTransportBaseOptions {
   signalingUrl: string;
   iceServers?: RTCIceServer[];
+  iceTransportPolicy?: RTCIceTransportPolicy;
 }
 
 export const MESH_CONFERENCE_CAPABILITIES: ConferenceTransportCapabilities = {
@@ -167,6 +168,7 @@ export class MeshConference implements ConferenceTransport {
       initiator,
       localStream: this.#options.localStream,
       iceServers: this.#iceServers,
+      iceTransportPolicy: this.#options.iceTransportPolicy,
       sendSignal: (payload) => {
         this.#signaling.send({ type: "signal", to: peer.id, ...payload });
       },
