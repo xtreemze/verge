@@ -15,7 +15,7 @@ describe("sessionBootstrap", () => {
   });
 
   it("replaces missing or malformed room identifiers", () => {
-    const generated = sessionBootstrap("?room=too-short");
+    const generated = sessionBootstrap("?room=contains%20spaces");
     expect(isValidRoomId(generated.roomId)).toBe(true);
     expect(generated.roomId).toHaveLength(32);
   });
