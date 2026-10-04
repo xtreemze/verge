@@ -12,6 +12,7 @@
 - [x] text chat
 - [x] chunked SHA-256 verified file transfer
 - [x] browser capability display
+- [x] two-phone Android ADB smoke harness
 - [ ] production TURN configuration
 - [ ] software background segmentation fallback when native blur is unavailable
 - [ ] adaptive bitrate/resolution controller driven by getStats()
