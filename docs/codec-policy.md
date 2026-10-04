@@ -21,16 +21,16 @@ The SDP offer/answer exchange remains authoritative: a preferred codec is used o
 
 Chrome supports a broad WebRTC codec set, but encode/decode capability and power efficiency are not uniform across machines. AV1 is especially useful for bandwidth efficiency and detailed screen content, while hardware-backed HEVC or H.264 may be more power-efficient on some systems.
 
-A later quality controller should combine:
+The current quality controller samples `RTCPeerConnection.getStats()`,
+classifies RTT, packet loss, jitter, connection state, and encoder
+quality-limitation reasons, then applies high/medium/low video encoding
+targets with hysteresis. Available outgoing bitrate and the selected ICE
+path are also recorded for diagnostics.
 
-- RTP codec capabilities
-- Media Capabilities smooth/power-efficient signals where available
-- `RTCPeerConnection.getStats()`
-- current packet loss, RTT, and available bitrate
-- encoder quality-limitation reason
-- participant tile size and visibility
-
-Codec preference should not prevent congestion control from reducing bitrate, resolution, or frame rate.
+Future policy can incorporate Media Capabilities power-efficiency signals,
+available bitrate, participant tile size, and visibility more directly.
+Codec preference does not prevent congestion control from reducing bitrate,
+resolution, or frame rate.
 
 ## Screen content
 
