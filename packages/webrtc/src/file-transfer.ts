@@ -237,6 +237,12 @@ export async function sha256Blob(blob: Blob): Promise<string> {
   return hash.digestHex();
 }
 
+function copyArrayBuffer(chunk: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(chunk.byteLength);
+  copy.set(chunk);
+  return copy.buffer;
+}
+
 interface ReceiveSink {
   write(chunk: Uint8Array): Promise<void>;
   finish(mediaType: string): Promise<Blob>;
@@ -244,7 +250,7 @@ interface ReceiveSink {
 }
 
 class MemoryReceiveSink implements ReceiveSink {
-  #chunks: Uint8Array[] = [];
+  #chunks: ArrayBuffer[] = [];
   #size = 0;
 
   async write(chunk: Uint8Array): Promise<void> {
@@ -254,7 +260,7 @@ class MemoryReceiveSink implements ReceiveSink {
         "Incoming file exceeds the bounded in-memory receive limit."
       );
     }
-    this.#chunks.push(chunk.slice());
+    this.#chunks.push(copyArrayBuffer(chunk));
   }
 
   async finish(mediaType: string): Promise<Blob> {
@@ -292,7 +298,7 @@ class OpfsReceiveSink implements ReceiveSink {
   ) {}
 
   async write(chunk: Uint8Array): Promise<void> {
-    await this.writable.write(chunk);
+    await this.writable.write(copyArrayBuffer(chunk));
   }
 
   async finish(): Promise<Blob> {
