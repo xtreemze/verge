@@ -66,11 +66,24 @@ interface Download {
 }
 
 function signalingUrl(): string {
-  if (import.meta.env.VITE_SIGNALING_URL) {
-    return import.meta.env.VITE_SIGNALING_URL;
-  }
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const configured = import.meta.env.VITE_SIGNALING_URL as
+    | string
+    | undefined;
+
+  if (configured) {
+    return configured.startsWith("/")
+      ? `${protocol}//${location.host}${configured}`
+      : configured;
+  }
+
   return `${protocol}//${location.hostname}:8787`;
+}
+
+function configuredIceTransportPolicy(): RTCIceTransportPolicy {
+  return import.meta.env.VITE_ICE_TRANSPORT_POLICY === "relay"
+    ? "relay"
+    : "all";
 }
 
 function attachVideo(
@@ -276,6 +289,7 @@ export function App() {
       conference = createConferenceTransport({
         topology: "mesh",
         signalingUrl: signalingUrl(),
+        iceTransportPolicy: configuredIceTransportPolicy(),
         roomId: normalizedRoomId,
         displayName: displayName().trim(),
         localStream: stream,
@@ -310,6 +324,7 @@ export function App() {
             { ...message, author: peer.displayName, self: false }
           ]),
         onFile: (peer, file) => receiveFile(peer, file),
+        onStatus: (message) => setStatus(message),
         onFileProgress: (peer, progress) =>
           setActiveTransfers((current) => {
             const key = `${peer.id}:${progress.id}:${progress.direction}`;
@@ -952,6 +967,7 @@ export function App() {
                 <span>Audio: Opus preferred</span>
                 <span>Topology: {conference?.topology ?? "mesh"} · direct peer media</span>
                 <span>Signaling: {signalingUrl()}</span>
+                <span>ICE policy: {configuredIceTransportPolicy()}</span>
               </details>
               <p class="status" role="status" data-testid="conference-status">{status()}</p>
             </section>
