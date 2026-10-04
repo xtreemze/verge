@@ -17,6 +17,8 @@
     "vitest": "5.0.3"
   },
   "dependencies": {
-    "@verge/protocol": "workspace:*"
+    "@verge/media": "workspace:*",
+    "@verge/protocol": "workspace:*",
+    "@verge/webrtc": "workspace:*"
   }
 }
