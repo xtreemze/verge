@@ -94,7 +94,8 @@ describe("SignalingClient", () => {
     expect(JSON.parse(second.sent[0]!)).toEqual({
       type: "join",
       roomId: "room-abc",
-      displayName: "Alice"
+      displayName: "Alice",
+      invite: "v1.payload.signature"
     });
     expect(reconnected).toHaveBeenCalledTimes(1);
 
