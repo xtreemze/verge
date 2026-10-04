@@ -35,17 +35,25 @@ pnpm install
 pnpm dev
 ```
 
-Keep the development processes running. In another terminal:
+Keep the development processes running. For the manual pairing workflow:
 
 ```bash
 pnpm android:pair
 ```
 
+For executable physical-device certification:
+
+```bash
+pnpm android:certify
+```
+
 If more than two devices are attached, pass the exact serials:
 
 ```bash
-pnpm android:pair -- SERIAL_A SERIAL_B
+pnpm android:certify -- SERIAL_A SERIAL_B
 ```
+
+The certification command reuses the ADB pairing topology, attaches to both Android Chrome pages through the Chrome DevTools Protocol, drives the Verge UI, and produces machine-readable evidence. Camera/microphone permission prompts remain user-mediated; when prompted, allow them on both phones.
 
 The script:
 
@@ -56,11 +64,51 @@ The script:
 
 Using `http://localhost:5173` through ADB reverse is deliberate. Loopback/localhost is treated as a trustworthy origin, so camera and microphone APIs remain available without setting up temporary LAN TLS certificates.
 
-## Acceptance checklist
+## Automated certification
 
-On both phones, tap **Join room** and allow camera/microphone access.
+`pnpm android:certify` automatically checks:
 
-Pass when all of the following hold:
+- both phones opened the same room and reached **Connected**;
+- both peers see two participants;
+- remote audio and video tracks exist in both directions;
+- connection-quality telemetry resolves the selected ICE path as direct or relay;
+- bidirectional chat;
+- bidirectional synthetic small-file transfer with SHA-256 verification;
+- mute/unmute and camera off/on preserve the room;
+- front/back camera switching when Chrome exposes at least two cameras;
+- explicit screen-share/background-blur capability gating;
+- peer leave removes the remote participant cleanly.
+
+It also captures connected-state screenshots, Chrome console/runtime logs, and recent Android logcat output.
+
+Artifacts are written under:
+
+```text
+artifacts/android-certification/<timestamp>/
+  report.json
+  report.xml
+  summary.txt
+  phone-a-connected.png
+  phone-b-connected.png
+  phone-a-console.log
+  phone-b-console.log
+  phone-a-logcat.txt
+  phone-b-logcat.txt
+```
+
+The JSON report status is `failed`, `passed`, or `manual-required`. Physical media checks intentionally keep the overall result at `manual-required` until those observations are performed; the command exits non-zero only for an automated failure.
+
+Useful overrides:
+
+```bash
+VERGE_ANDROID_PERMISSION_TIMEOUT_MS=180000 \
+VERGE_ANDROID_CERTIFY_HOLD_SECONDS=30 \
+pnpm android:certify -- SERIAL_A SERIAL_B
+```
+
+## Manual acceptance checklist
+
+During the hold window and after the automated run, verify:
 
 - both phones show **Connected**;
 - each phone renders the other participant;

@@ -15,7 +15,9 @@
     "desktop": "pnpm --filter @verge/desktop tauri dev",
     "site:dev": "pnpm --filter @verge/site dev",
     "site:build": "pnpm --filter @verge/site build",
-    "android:pair": "bash scripts/adb-two-phone-mvp.sh"
+    "android:pair": "bash scripts/adb-two-phone-mvp.sh",
+    "android:certify": "node scripts/android-certify.mjs",
+    "test:android-certify": "node --test scripts/android-certify-lib.test.mjs"
   },
   "devDependencies": {
     "typescript": "7.0.2",

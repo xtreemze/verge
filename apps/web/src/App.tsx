@@ -759,7 +759,7 @@ export function App() {
             </div>
             <div class="top-actions">
               <button onClick={() => void copyInvite()}>Copy invite</button>
-              <button class="danger" onClick={leave}>Leave</button>
+              <button class="danger" data-testid="leave-room" onClick={leave}>Leave</button>
             </div>
           </header>
 
@@ -823,12 +823,14 @@ export function App() {
 
               <div class="controls" aria-label="Call controls">
                 <button
+                  data-testid="microphone-toggle"
                   classList={{ active: micEnabled() }}
                   onClick={toggleMicrophone}
                 >
                   {micEnabled() ? "Mute" : "Unmute"}
                 </button>
                 <button
+                  data-testid="camera-toggle"
                   classList={{ active: cameraEnabled() }}
                   onClick={toggleCamera}
                 >
@@ -851,6 +853,7 @@ export function App() {
                   </select>
                 </label>
                 <button
+                  data-testid="share-screen"
                   classList={{ active: screenSharing() }}
                   disabled={!displayCaptureAvailable && !screenSharing()}
                   onClick={() => void toggleScreenShare()}
@@ -867,6 +870,7 @@ export function App() {
                     : "Share screen"}
                 </button>
                 <button
+                  data-testid="background-blur"
                   disabled={!blurAvailable()}
                   classList={{ active: blurEnabled() }}
                   onClick={() => void toggleBlur()}
@@ -886,6 +890,7 @@ export function App() {
                   <label>
                     Camera
                     <select
+                      data-testid="camera-select"
                       value={selectedCameraId()}
                       disabled={
                         switchingDevice() || cameras().length === 0
@@ -979,6 +984,7 @@ export function App() {
                   <label class="file-button">
                     Send file
                     <input
+                      data-testid="file-input"
                       type="file"
                       onChange={(event) => void sendSelectedFile(event)}
                     />
