@@ -41,6 +41,7 @@ describe("IncrementalSha256", () => {
     const blob = new Blob(["abc"]);
     const original = blob.arrayBuffer.bind(blob);
     Object.defineProperty(blob, "arrayBuffer", {
+      configurable: true,
       value: () => {
         throw new Error("whole blob read should not be used");
       }
