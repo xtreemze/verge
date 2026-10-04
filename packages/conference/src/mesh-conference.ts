@@ -22,6 +22,7 @@ export interface MeshConferenceOptions
   signalingUrl: string;
   iceServers?: RTCIceServer[];
   iceTransportPolicy?: RTCIceTransportPolicy;
+  invite?: string;
 }
 
 export const MESH_CONFERENCE_CAPABILITIES: ConferenceTransportCapabilities = {
@@ -64,7 +65,8 @@ export class MeshConference implements ConferenceTransport {
   async start(): Promise<void> {
     await this.#signaling.connect(
       this.#options.roomId,
-      this.#options.displayName
+      this.#options.displayName,
+      this.#options.invite
     );
   }
 
