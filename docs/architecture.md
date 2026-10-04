@@ -55,9 +55,9 @@ Speech audio requests echo cancellation, noise suppression, automatic gain contr
 
 Each peer connection negotiates an ordered `chat` channel.
 
-File transfers use dedicated ordered channels. Files are SHA-256 hashed, divided into 64 KiB chunks, sent with data-channel backpressure, reassembled by the receiver, and hashed again before being offered for download.
+File transfers use dedicated ordered channels. Files are SHA-256 hashed, divided into 64 KiB chunks, sent with data-channel backpressure, incrementally hashed by the receiver, and verified before being offered for download.
 
-The current receiver buffers a transferred file in memory. A later desktop/browser filesystem integration should stream large files directly to storage.
+Incoming transfers stream into the browser origin-private file system when it is available. Environments without that storage surface use a bounded in-memory fallback for smaller files; transfers beyond the fallback bound are rejected instead of growing memory without limit.
 
 ## Platform boundary
 
