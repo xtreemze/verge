@@ -11,5 +11,5 @@ export function signalingReconnectDelay(attempt: number): number {
     Math.max(0, Math.trunc(attempt)),
     SIGNALING_RECONNECT_DELAYS_MS.length - 1
   );
-  return SIGNALING_RECONNECT_DELAYS_MS[index];
+  return SIGNALING_RECONNECT_DELAYS_MS[index]!;
 }
