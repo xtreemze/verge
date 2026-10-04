@@ -30,6 +30,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Android harness syntax
+        run: bash -n scripts/adb-two-phone-mvp.sh
+
       - name: Build
         run: pnpm build
 
