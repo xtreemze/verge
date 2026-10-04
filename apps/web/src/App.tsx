@@ -32,7 +32,8 @@ import type {
 } from "@verge/protocol";
 import {
   supportedVideoMimeTypes,
-  type ConnectionQualitySnapshot
+  type ConnectionQualitySnapshot,
+  type FileTransferProgress
 } from "@verge/webrtc";
 import { loadIceServers } from "./ice-config";
 
@@ -44,6 +45,13 @@ interface RemotePeer {
 interface DisplayMessage extends ChatMessage {
   author: string;
   self: boolean;
+}
+
+interface ActiveTransfer {
+  key: string;
+  peerId: string;
+  peerName: string;
+  progress: FileTransferProgress;
 }
 
 interface Download {
@@ -123,6 +131,8 @@ export function App() {
   >({});
   const [messages, setMessages] = createSignal<DisplayMessage[]>([]);
   const [downloads, setDownloads] = createSignal<Download[]>([]);
+  const [activeTransfers, setActiveTransfers] =
+    createSignal<ActiveTransfer[]>([]);
   const [messageText, setMessageText] = createSignal("");
   const [connected, setConnected] = createSignal(false);
   const [joining, setJoining] = createSignal(false);
@@ -284,6 +294,26 @@ export function App() {
             { ...message, author: peer.displayName, self: false }
           ]),
         onFile: (peer, file) => receiveFile(peer, file),
+        onFileProgress: (peer, progress) =>
+          setActiveTransfers((current) => {
+            const key = `${peer.id}:${progress.id}:${progress.direction}`;
+            const next = current.filter((item) => item.key !== key);
+            if (
+              progress.state === "completed" ||
+              progress.state === "cancelled"
+            ) {
+              return next;
+            }
+            return [
+              ...next,
+              {
+                key,
+                peerId: peer.id,
+                peerName: peer.displayName,
+                progress
+              }
+            ];
+          }),
         onError: (message) => setStatus(message)
       });
 
@@ -322,6 +352,7 @@ export function App() {
     setLocalStream(undefined);
     setRemotePeers([]);
     setPeerQuality({});
+    setActiveTransfers([]);
     setConnected(false);
     setScreenSharing(false);
     setBlurEnabled(false);
@@ -568,13 +599,22 @@ export function App() {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!file || !conference) return;
+    const transferId = crypto.randomUUID();
     setStatus(`Sending ${file.name}…`);
     try {
-      await conference.sendFile(file);
+      await conference.sendFile(file, transferId);
       setStatus(`Sent ${file.name}`);
     } catch {
       setStatus(`Could not send ${file.name}`);
     }
+  }
+
+  function cancelTransfer(transferId: string): void {
+    conference?.cancelFileTransfer(transferId);
+    setActiveTransfers((current) =>
+      current.filter((item) => item.progress.id !== transferId)
+    );
+    setStatus("File transfer cancelled");
   }
 
   async function copyInvite(): Promise<void> {
@@ -918,6 +958,37 @@ export function App() {
                   <button type="submit">Send</button>
                 </form>
               </section>
+
+              <Show when={activeTransfers().length > 0}>
+                <section class="downloads">
+                  <h2>Transfers</h2>
+                  <For each={activeTransfers()}>
+                    {(item) => (
+                      <div class="transfer-row">
+                        <span>
+                          {item.progress.direction === "send" ? "To" : "From"}{" "}
+                          {item.peerName} · {item.progress.name}
+                        </span>
+                        <progress
+                          max={Math.max(item.progress.totalBytes, 1)}
+                          value={item.progress.bytesTransferred}
+                        />
+                        <small>{item.progress.state}</small>
+                        <Show when={item.progress.direction === "send"}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cancelTransfer(item.progress.id)
+                            }
+                          >
+                            Cancel
+                          </button>
+                        </Show>
+                      </div>
+                    )}
+                  </For>
+                </section>
+              </Show>
 
               <Show when={downloads().length > 0}>
                 <section class="downloads">
