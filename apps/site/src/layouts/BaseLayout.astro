@@ -1,0 +1,95 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const onOnboarding = Astro.url.pathname.includes("/onboarding");
+const canonical = new URL(
+  Astro.url.pathname,
+  Astro.site ?? Astro.url.origin
+);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="color-scheme" content="dark" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Verge" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href={`${base}/favicon.svg`} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href={`${base}/`} aria-label="Verge home">
+        <span class="wordmark-mark" aria-hidden="true">V</span>
+        <span>Verge</span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a
+          href={`${base}/`}
+          aria-current={!onOnboarding ? "page" : undefined}
+        >
+          Overview
+        </a>
+        <a
+          href={`${base}/onboarding/`}
+          aria-current={onOnboarding ? "page" : undefined}
+        >
+          Onboarding
+        </a>
+        <a
+          class="nav-github"
+          href="https://github.com/xtreemze/verge"
+        >
+          GitHub
+          <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="wordmark footer-wordmark" href={`${base}/`}>
+          <span class="wordmark-mark" aria-hidden="true">V</span>
+          <span>Verge</span>
+        </a>
+        <p>
+          Browser-first conferencing. Peer-to-peer by default,
+          server-minimal by design.
+        </p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/xtreemze/verge">Source</a>
+        <a href="https://github.com/xtreemze/verge/tree/main/docs">
+          Architecture
+        </a>
+        <a href={`${base}/onboarding/`}>Get ready</a>
+      </div>
+    </footer>
+  </body>
+</html>
