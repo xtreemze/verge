@@ -101,8 +101,7 @@ export function createIceConfiguration(
     iceServers.push({
       urls: options.turnUrls,
       username,
-      credential,
-      credentialType: "password"
+      credential
     });
   }
 
