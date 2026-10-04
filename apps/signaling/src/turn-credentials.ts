@@ -82,7 +82,7 @@ export function turnCredentialOptionsFromEnv(
 export function createIceConfiguration(
   options: TurnCredentialOptions,
   nowMs = Date.now(),
-  userId = randomUUID()
+  userId: string = randomUUID()
 ): IceConfigurationResponse {
   const expiresAtSeconds =
     Math.floor(nowMs / 1_000) + options.ttlSeconds;
