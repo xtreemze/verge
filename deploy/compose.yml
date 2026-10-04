@@ -1,0 +1,70 @@
+name: verge
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      VERGE_DOMAIN: ${VERGE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      signaling:
+        condition: service_healthy
+
+  signaling:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.signaling
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "8787"
+      VERGE_ALLOWED_ORIGINS: https://${VERGE_DOMAIN}
+      VERGE_MAX_ROOM_SIZE: ${VERGE_MAX_ROOM_SIZE:-8}
+      VERGE_STUN_URLS: stun:${VERGE_TURN_HOST}:3478
+      VERGE_TURN_URLS: turn:${VERGE_TURN_HOST}:3478?transport=udp,turn:${VERGE_TURN_HOST}:3478?transport=tcp
+      VERGE_TURN_SHARED_SECRET: ${VERGE_TURN_SHARED_SECRET}
+      VERGE_TURN_CREDENTIAL_TTL_SECONDS: ${VERGE_TURN_CREDENTIAL_TTL_SECONDS:-3600}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8787/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  coturn:
+    image: coturn/coturn:4.18.0-r0
+    restart: unless-stopped
+    command:
+      - -n
+      - --log-file=stdout
+      - --use-auth-secret
+      - --static-auth-secret=${VERGE_TURN_SHARED_SECRET}
+      - --realm=${VERGE_TURN_REALM}
+      - --server-name=${VERGE_TURN_HOST}
+      - --external-ip=${VERGE_PUBLIC_IP}
+      - --fingerprint
+      - --no-cli
+      - --no-multicast-peers
+      - --min-port=49160
+      - --max-port=49200
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+
+volumes:
+  caddy_data:
+  caddy_config:

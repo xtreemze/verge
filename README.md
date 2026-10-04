@@ -21,7 +21,9 @@ Verge is a small-room conferencing system built around standards-based WebRTC. T
 
 ## Status
 
-Initial scaffold. The first milestone establishes signaling, media acquisition, codec selection, room transport, chat/file data channels, and a functional SolidJS conferencing UI.
+**MVP release candidate.** The browser product has real two-peer WebRTC certification in CI for both direct/local connectivity and forced TURN relay, plus a reproducible two-phone Android ADB acceptance harness. The remaining release check is physical-device certification tracked in issue #41.
+
+The production deployment serves the web client over HTTPS, WebSocket signaling over WSS, short-lived TURN credentials from the control plane, and coturn relay fallback without exposing the shared TURN secret to the browser.
 
 ## Development
 
@@ -47,6 +49,17 @@ pnpm android:pair
 ```
 
 This uses ADB reverse for the web/signaling ports, opens both Chrome instances in the same room, and exposes their DevTools targets on host ports 9222 and 9223. See `docs/android-adb-mvp.md` for the acceptance checklist and TURN/network notes.
+
+## Production MVP
+
+Copy the production environment template and start the complete HTTPS/WSS/TURN stack:
+
+```bash
+cp deploy/.env.production.example .env.production
+docker compose --env-file .env.production -f deploy/compose.yml up -d --build
+```
+
+See `docs/deployment.md` for DNS, firewall, TURN, health-check, and release acceptance requirements.
 
 ## Landing and onboarding site
 

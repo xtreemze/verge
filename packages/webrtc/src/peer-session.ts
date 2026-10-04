@@ -49,6 +49,7 @@ export interface PeerSessionOptions extends PeerSessionEvents {
   peer: PeerSummary;
   localStream: MediaStream;
   iceServers: RTCIceServer[];
+  iceTransportPolicy?: RTCIceTransportPolicy;
   initiator: boolean;
   sendSignal(payload: {
     description?: SessionDescription;
@@ -101,6 +102,7 @@ export class PeerSession {
     this.#initiator = options.initiator;
     this.connection = new RTCPeerConnection({
       iceServers: options.iceServers,
+      iceTransportPolicy: options.iceTransportPolicy ?? "all",
       bundlePolicy: "max-bundle"
     });
 

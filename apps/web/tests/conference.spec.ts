@@ -61,6 +61,17 @@ test("certifies two-peer WebRTC media, chat, files, and cleanup", async ({
     await expectRemoteMedia(page, "Bob");
     await expectRemoteMedia(secondPage, "Alice");
 
+    if (process.env.VERGE_E2E_RELAY === "1") {
+      await expect(page.locator(".quality-badge").first()).toContainText(
+        "relay",
+        { timeout: 15_000 }
+      );
+      await expect(secondPage.locator(".quality-badge").first()).toContainText(
+        "relay",
+        { timeout: 15_000 }
+      );
+    }
+
     const message = `hello-${crypto.randomUUID().slice(0, 8)}`;
     await page.getByLabel("Message").fill(message);
     await page.getByRole("button", { name: "Send" }).click();

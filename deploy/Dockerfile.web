@@ -1,0 +1,14 @@
+FROM node:24-alpine AS build
+
+RUN npm install --global pnpm@12.8.0
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile
+
+ENV VITE_SIGNALING_URL=/ws
+ENV VITE_ICE_CONFIG_URL=/api/ice
+RUN pnpm --filter @verge/web build
+
+FROM caddy:2.10.2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/apps/web/dist /srv

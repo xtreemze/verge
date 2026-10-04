@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   parseClientMessage,
   type ClientMessage,
@@ -11,6 +12,10 @@ import {
   isSignalingOriginAllowed
 } from "./origin-policy.ts";
 import { consumeFixedWindow } from "./rate-limit.ts";
+import {
+  createIceConfiguration,
+  turnCredentialOptionsFromEnv
+} from "./turn-credentials.ts";
 
 interface ClientContext {
   id: string;
@@ -29,9 +34,7 @@ function positiveIntegerEnv(
   if (raw === undefined) return fallback;
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(
-      `${name} must be a positive integer.`
-    );
+    throw new Error(`${name} must be a positive integer.`);
   }
   return value;
 }
@@ -62,27 +65,95 @@ const originPolicy = createSignalingOriginPolicy(
   process.env.VERGE_ALLOWED_ORIGINS,
   process.env.NODE_ENV === "production"
 );
+const turnOptions = turnCredentialOptionsFromEnv(process.env);
 
-const rooms = new Map<
-  string,
-  Map<string, WebSocket>
->();
-const clients = new WeakMap<
-  WebSocket,
-  ClientContext
->();
+const rooms = new Map<string, Map<string, WebSocket>>();
+const clients = new WeakMap<WebSocket, ClientContext>();
 const connections = new Set<WebSocket>();
 
+function requestOrigin(request: IncomingMessage): string | undefined {
+  const origin = request.headers.origin;
+  return Array.isArray(origin) ? origin[0] : origin;
+}
+
+function requestPath(request: IncomingMessage): string {
+  return new URL(
+    request.url ?? "/",
+    `http://${request.headers.host ?? "localhost"}`
+  ).pathname;
+}
+
+function sendJson(
+  response: ServerResponse,
+  status: number,
+  body: unknown
+): void {
+  response.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  response.end(JSON.stringify(body));
+}
+
+const httpServer = createServer((request, response) => {
+  const path = requestPath(request);
+
+  if (request.method === "GET" && path === "/healthz") {
+    sendJson(response, 200, { status: "ok" });
+    return;
+  }
+
+  if (request.method === "GET" && path === "/api/ice") {
+    const origin = requestOrigin(request);
+    if (
+      origin &&
+      !isSignalingOriginAllowed(origin, originPolicy)
+    ) {
+      sendJson(response, 403, { error: "Origin is not allowed." });
+      return;
+    }
+
+    if (!turnOptions) {
+      sendJson(response, 503, {
+        error: "ICE credential service is not configured."
+      });
+      return;
+    }
+
+    sendJson(response, 200, createIceConfiguration(turnOptions));
+    return;
+  }
+
+  sendJson(response, 404, { error: "Not found." });
+});
+
 const server = new WebSocketServer({
-  port,
-  maxPayload: 256 * 1024,
-  verifyClient: (
-    info: { origin: string }
-  ) =>
-    isSignalingOriginAllowed(
-      info.origin || undefined,
+  noServer: true,
+  maxPayload: 256 * 1024
+});
+
+httpServer.on("upgrade", (request, socket, head) => {
+  const path = requestPath(request);
+  if (path !== "/" && path !== "/ws") {
+    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  if (
+    !isSignalingOriginAllowed(
+      requestOrigin(request),
       originPolicy
     )
+  ) {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  server.handleUpgrade(request, socket, head, (webSocket) => {
+    server.emit("connection", webSocket, request);
+  });
 });
 
 function send(
@@ -94,13 +165,10 @@ function send(
   }
 }
 
-function peerFrom(
-  context: ClientContext
-): PeerSummary {
+function peerFrom(context: ClientContext): PeerSummary {
   return {
     id: context.id,
-    displayName:
-      context.displayName ?? "Peer"
+    displayName: context.displayName ?? "Peer"
   };
 }
 
@@ -118,9 +186,7 @@ function broadcast(
   }
 }
 
-function leaveRoom(
-  socket: WebSocket
-): void {
+function leaveRoom(socket: WebSocket): void {
   const context = clients.get(socket);
   if (!context?.roomId) return;
 
@@ -158,21 +224,16 @@ function joinRoom(
     return;
   }
 
-  const peers = Array.from(
-    room.keys(),
-    (id) => {
-      const peerSocket = room.get(id);
-      const peerContext = peerSocket
-        ? clients.get(peerSocket)
-        : undefined;
-      return {
-        id,
-        displayName:
-          peerContext?.displayName ??
-          "Peer"
-      };
-    }
-  );
+  const peers = Array.from(room.keys(), (id) => {
+    const peerSocket = room.get(id);
+    const peerContext = peerSocket
+      ? clients.get(peerSocket)
+      : undefined;
+    return {
+      id,
+      displayName: peerContext?.displayName ?? "Peer"
+    };
+  });
 
   context.roomId = roomId;
   context.displayName = displayName;
@@ -196,27 +257,20 @@ function joinRoom(
 
 function forwardSignal(
   context: ClientContext,
-  message: Extract<
-    ClientMessage,
-    { type: "signal" }
-  >
+  message: Extract<ClientMessage, { type: "signal" }>
 ): void {
   if (!context.roomId) return;
 
   const target = rooms
     .get(context.roomId)
     ?.get(message.to);
-
   if (!target) return;
 
   send(target, {
     type: "signal",
     from: peerFrom(context),
     ...(message.description
-      ? {
-          description:
-            message.description
-        }
+      ? { description: message.description }
       : {}),
     ...(message.candidate
       ? { candidate: message.candidate }
@@ -224,124 +278,99 @@ function forwardSignal(
   });
 }
 
-server.on(
-  "connection",
-  (socket) => {
-    const now = Date.now();
-    const context: ClientContext = {
-      id: randomUUID(),
-      windowStartedAt: now,
-      messagesInWindow: 0,
-      lastActivityAt: now
-    };
-    clients.set(socket, context);
-    connections.add(socket);
+server.on("connection", (socket) => {
+  const now = Date.now();
+  const context: ClientContext = {
+    id: randomUUID(),
+    windowStartedAt: now,
+    messagesInWindow: 0,
+    lastActivityAt: now
+  };
+  clients.set(socket, context);
+  connections.add(socket);
 
-    socket.on(
-      "message",
-      (data, isBinary) => {
-        const messageTime = Date.now();
-        context.lastActivityAt =
-          messageTime;
+  socket.on("message", (data, isBinary) => {
+    const messageTime = Date.now();
+    context.lastActivityAt = messageTime;
 
-        if (
-          !consumeFixedWindow(
-            context,
-            messageTime,
-            rateWindowMs,
-            maxMessagesPerWindow
-          )
-        ) {
-          send(socket, {
-            type: "error",
-            message:
-              "Signaling rate limit exceeded."
-          });
-          socket.close(
-            1008,
-            "Rate limit exceeded"
-          );
-          return;
-        }
+    if (
+      !consumeFixedWindow(
+        context,
+        messageTime,
+        rateWindowMs,
+        maxMessagesPerWindow
+      )
+    ) {
+      send(socket, {
+        type: "error",
+        message: "Signaling rate limit exceeded."
+      });
+      socket.close(1008, "Rate limit exceeded");
+      return;
+    }
 
-        if (isBinary) {
-          send(socket, {
-            type: "error",
-            message:
-              "Invalid signaling message."
-          });
-          return;
-        }
+    if (isBinary) {
+      send(socket, {
+        type: "error",
+        message: "Invalid signaling message."
+      });
+      return;
+    }
 
-        let raw: unknown;
-        try {
-          raw = JSON.parse(
-            data.toString()
-          );
-        } catch {
-          send(socket, {
-            type: "error",
-            message:
-              "Invalid signaling message."
-          });
-          return;
-        }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(data.toString());
+    } catch {
+      send(socket, {
+        type: "error",
+        message: "Invalid signaling message."
+      });
+      return;
+    }
 
-        const message =
-          parseClientMessage(raw);
-        if (!message) {
-          send(socket, {
-            type: "error",
-            message:
-              "Invalid signaling message."
-          });
-          return;
-        }
+    const message = parseClientMessage(raw);
+    if (!message) {
+      send(socket, {
+        type: "error",
+        message: "Invalid signaling message."
+      });
+      return;
+    }
 
-        switch (message.type) {
-          case "join":
-            joinRoom(
-              socket,
-              context,
-              message.roomId,
-              message.displayName
-            );
-            break;
-          case "signal":
-            forwardSignal(
-              context,
-              message
-            );
-            break;
-          case "leave":
-            leaveRoom(socket);
-            break;
-        }
-      }
-    );
+    switch (message.type) {
+      case "join":
+        joinRoom(
+          socket,
+          context,
+          message.roomId,
+          message.displayName
+        );
+        break;
+      case "signal":
+        forwardSignal(context, message);
+        break;
+      case "leave":
+        leaveRoom(socket);
+        break;
+    }
+  });
 
-    socket.on("close", () => {
-      connections.delete(socket);
-      leaveRoom(socket);
-    });
-  }
-);
+  socket.on("close", () => {
+    connections.delete(socket);
+    leaveRoom(socket);
+  });
+});
 
 const sweepTimer = setInterval(() => {
-  const cutoff =
-    Date.now() - idleTimeoutMs;
+  const cutoff = Date.now() - idleTimeoutMs;
 
   for (const socket of connections) {
-    const context =
-      clients.get(socket);
+    const context = clients.get(socket);
     if (
       context &&
       context.lastActivityAt < cutoff
     ) {
-      socket.close(
-        1001,
-        "Idle timeout"
-      );
+      socket.close(1001, "Idle timeout");
     }
   }
 }, sweepIntervalMs);
@@ -351,6 +380,8 @@ server.on("close", () => {
   clearInterval(sweepTimer);
 });
 
-console.log(
-  `Verge signaling listening on ws://localhost:${port}`
-);
+httpServer.listen(port, "0.0.0.0", () => {
+  console.log(
+    `Verge signaling/control plane listening on http://0.0.0.0:${port}`
+  );
+});
