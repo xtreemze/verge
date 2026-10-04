@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { parseClientMessage } from "./index";
+import {
+  ROOM_ID_PATTERN,
+  createRoomId,
+  isValidRoomId,
+  parseClientMessage
+} from "./index";
+
+describe("room identifiers", () => {
+  it("creates a secure identifier within the canonical contract", () => {
+    const roomId = createRoomId();
+
+    expect(roomId).toHaveLength(32);
+    expect(roomId).toMatch(ROOM_ID_PATTERN);
+    expect(isValidRoomId(roomId)).toBe(true);
+  });
+});
 
 describe("parseClientMessage", () => {
   it("accepts and normalizes a valid join", () => {
