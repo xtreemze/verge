@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   parseClientMessage,
@@ -13,6 +13,11 @@ import {
 } from "./origin-policy.ts";
 import { consumeFixedWindow } from "./rate-limit.ts";
 import {
+  createRoomInvite,
+  inviteAuthOptionsFromEnv,
+  verifyRoomInvite
+} from "./room-invites.ts";
+import {
   createIceConfiguration,
   turnCredentialOptionsFromEnv
 } from "./turn-credentials.ts";
@@ -24,6 +29,8 @@ interface ClientContext {
   windowStartedAt: number;
   messagesInWindow: number;
   lastActivityAt: number;
+  authWindowStartedAt: number;
+  authFailuresInWindow: number;
 }
 
 function positiveIntegerEnv(
@@ -60,10 +67,23 @@ const sweepIntervalMs = positiveIntegerEnv(
   "VERGE_SIGNAL_SWEEP_INTERVAL_MS",
   60_000
 );
+const authFailureWindowMs = positiveIntegerEnv(
+  "VERGE_AUTH_FAILURE_WINDOW_MS",
+  60_000
+);
+const maxAuthFailuresPerWindow = positiveIntegerEnv(
+  "VERGE_AUTH_MAX_FAILURES",
+  8
+);
 
+const production = process.env.NODE_ENV === "production";
 const originPolicy = createSignalingOriginPolicy(
   process.env.VERGE_ALLOWED_ORIGINS,
-  process.env.NODE_ENV === "production"
+  production
+);
+const inviteAuthOptions = inviteAuthOptionsFromEnv(
+  process.env,
+  production
 );
 const turnOptions = turnCredentialOptionsFromEnv(process.env);
 
@@ -124,6 +144,36 @@ const httpServer = createServer((request, response) => {
     return;
   }
 
+  if (request.method === "POST" && path === "/api/rooms") {
+    const origin = requestOrigin(request);
+    if (
+      origin &&
+      !isSignalingOriginAllowed(origin, originPolicy)
+    ) {
+      sendJson(response, 403, { error: "Origin is not allowed." });
+      return;
+    }
+
+    if (!inviteAuthOptions) {
+      sendJson(response, 404, { error: "Room invitations are disabled." });
+      return;
+    }
+
+    const roomId = randomBytes(16).toString("hex");
+    const created = createRoomInvite(
+      roomId,
+      inviteAuthOptions
+    );
+    sendJson(response, 201, {
+      roomId,
+      invite: created.token,
+      expiresAt: new Date(
+        created.payload.expiresAt * 1_000
+      ).toISOString()
+    });
+    return;
+  }
+
   sendJson(response, 404, { error: "Not found." });
 });
 
@@ -172,6 +222,25 @@ function peerFrom(context: ClientContext): PeerSummary {
   };
 }
 
+function recordAuthFailure(
+  context: ClientContext,
+  now: number
+): boolean {
+  if (
+    now - context.authWindowStartedAt >=
+    authFailureWindowMs
+  ) {
+    context.authWindowStartedAt = now;
+    context.authFailuresInWindow = 0;
+  }
+
+  context.authFailuresInWindow += 1;
+  return (
+    context.authFailuresInWindow <=
+    maxAuthFailuresPerWindow
+  );
+}
+
 function broadcast(
   roomId: string,
   message: ServerMessage,
@@ -208,8 +277,39 @@ function joinRoom(
   socket: WebSocket,
   context: ClientContext,
   roomId: string,
-  displayName: string
+  displayName: string,
+  invite: string | undefined
 ): void {
+  if (inviteAuthOptions) {
+    const verified =
+      typeof invite === "string"
+        ? verifyRoomInvite(
+            invite,
+            roomId,
+            inviteAuthOptions
+          )
+        : { ok: false as const, reason: "malformed" as const };
+
+    if (!verified.ok) {
+      const withinBudget = recordAuthFailure(
+        context,
+        Date.now()
+      );
+      send(socket, {
+        type: "error",
+        message:
+          "Room invitation is invalid or expired."
+      });
+      if (!withinBudget) {
+        socket.close(
+          1008,
+          "Too many failed room authorization attempts"
+        );
+      }
+      return;
+    }
+  }
+
   leaveRoom(socket);
 
   const room =
@@ -284,7 +384,9 @@ server.on("connection", (socket) => {
     id: randomUUID(),
     windowStartedAt: now,
     messagesInWindow: 0,
-    lastActivityAt: now
+    lastActivityAt: now,
+    authWindowStartedAt: now,
+    authFailuresInWindow: 0
   };
   clients.set(socket, context);
   connections.add(socket);
