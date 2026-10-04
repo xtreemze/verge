@@ -20,7 +20,31 @@ export interface FileDone {
   kind: "done";
 }
 
-export type FileControlMessage = FileMetadata | FileDone;
+export interface FileCancel {
+  kind: "cancel";
+}
+
+export type FileControlMessage =
+  | FileMetadata
+  | FileDone
+  | FileCancel;
+
+export type FileTransferDirection = "send" | "receive";
+export type FileTransferState =
+  | "hashing"
+  | "transferring"
+  | "completed"
+  | "cancelled"
+  | "failed";
+
+export interface FileTransferProgress {
+  id: string;
+  name: string;
+  direction: FileTransferDirection;
+  state: FileTransferState;
+  bytesTransferred: number;
+  totalBytes: number;
+}
 
 const SHA256_INITIAL = new Uint32Array([
   0x6a09e667,
@@ -445,6 +469,10 @@ export function parseFileControlMessage(
   const record = value as Record<string, unknown>;
   if (record.kind === "done") {
     return { kind: "done" };
+  }
+
+  if (record.kind === "cancel") {
+    return { kind: "cancel" };
   }
 
   if (
