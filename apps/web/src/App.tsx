@@ -240,9 +240,13 @@ export function App() {
       setStatus("Enter your name.");
       return;
     }
-    if (!isValidRoomId(roomId().trim())) {
+    const normalizedRoomId = roomId().trim();
+    if (!isValidRoomId(normalizedRoomId)) {
       setStatus("Room identifier must be 32 URL-safe characters.");
       return;
+    }
+    if (normalizedRoomId !== roomId()) {
+      setRoomId(normalizedRoomId);
     }
     if (!secureContext) {
       setStatus("Camera and microphone require HTTPS or localhost.");
@@ -272,7 +276,7 @@ export function App() {
       conference = createConferenceTransport({
         topology: "mesh",
         signalingUrl: signalingUrl(),
-        roomId: roomId(),
+        roomId: normalizedRoomId,
         displayName: displayName().trim(),
         localStream: stream,
         ...(iceServers ? { iceServers } : {}),
@@ -280,7 +284,8 @@ export function App() {
           setConnected(true);
           setStatus("Connected");
           const url = new URL(location.href);
-          url.searchParams.set("room", roomId());
+          url.searchParams.set("room", normalizedRoomId);
+          url.searchParams.delete("name");
           history.replaceState(null, "", url);
         },
         onPeerStream: upsertPeer,
