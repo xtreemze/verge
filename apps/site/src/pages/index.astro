@@ -1,8 +1,40 @@
 ---
+import {
+  PREFERRED_AUDIO_MIME_TYPES,
+  PREFERRED_VIDEO_MIME_TYPES,
+  codecDisplayName
+} from "@verge/webrtc/codec-policy";
 import Icon from "../components/Icon.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function codecPolicyNote(mimeType: string): string {
+  switch (mimeType.toLowerCase()) {
+    case "video/av1":
+    case "video/vp9":
+      return "preferred when the browser exposes it";
+    case "video/h265":
+      return "used when the platform exposes HEVC";
+    case "video/h264":
+      return "broad compatibility path";
+    case "video/vp8":
+      return "compatibility fallback";
+    case "audio/opus":
+      return "preferred audio codec";
+    default:
+      return "runtime capability";
+  }
+}
+
+const codecPolicy = [
+  ...PREFERRED_VIDEO_MIME_TYPES,
+  ...PREFERRED_AUDIO_MIME_TYPES
+].map((mimeType) => ({
+  mimeType,
+  label: codecDisplayName(mimeType),
+  note: codecPolicyNote(mimeType)
+}));
 
 const features = [
   {
@@ -25,7 +57,7 @@ const features = [
   },
   {
     icon: "audio",
-    title: "Audio that adapts",
+    title: "Audio profiles",
     copy:
       "Speech mode requests echo cancellation, noise suppression, and gain control. Original-audio mode preserves stereo."
   },
@@ -33,7 +65,7 @@ const features = [
     icon: "codec",
     title: "Runtime codec policy",
     copy:
-      "Peers negotiate the best mutually supported video format instead of assuming one codec everywhere."
+      "Peers apply the shared preference policy to codecs the current browser actually exposes instead of assuming one format everywhere."
   },
   {
     icon: "shield",
@@ -191,20 +223,22 @@ const features = [
         <p class="kicker">Media policy</p>
         <h3>Capability first, not codec dogma.</h3>
         <p>
-          Verge inspects what the current browser can actually send
-          and receive, then negotiates among modern formats supported
-          by both peers. The exact result is a runtime property of the
-          call.
+          Verge starts from the browser's actual WebRTC capabilities
+          and applies the same preference policy shown here before
+          negotiation. Unsupported formats are skipped; the exact
+          result remains a runtime property of the call.
         </p>
       </div>
 
       <ul class="codec-list">
-        <li><strong>AV1</strong><span>when mutually supported</span></li>
-        <li><strong>VP9</strong><span>when mutually supported</span></li>
-        <li><strong>HEVC</strong><span>where the platform exposes it</span></li>
-        <li><strong>H.264</strong><span>broad compatibility path</span></li>
-        <li><strong>VP8</strong><span>compatibility fallback</span></li>
-        <li><strong>Opus</strong><span>audio</span></li>
+        {
+          codecPolicy.map((codec) => (
+            <li>
+              <strong>{codec.label}</strong>
+              <span>{codec.note}</span>
+            </li>
+          ))
+        }
       </ul>
     </div>
   </section>
