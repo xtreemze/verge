@@ -2,6 +2,7 @@ export interface BrowserCapabilitySnapshot {
   secureContext: boolean;
   webrtc: boolean;
   userMedia: boolean;
+  codecPreferences: boolean;
   dataChannel: boolean;
   secureRandom: boolean;
   displayCapture: boolean;
@@ -14,6 +15,12 @@ export const BROWSER_CAPABILITY_DEFINITIONS = [
     id: "user-media",
     key: "userMedia",
     label: "Camera + microphone API",
+    required: true
+  },
+  {
+    id: "codec-preferences",
+    key: "codecPreferences",
+    label: "WebRTC codec preferences",
     required: true
   },
   {
