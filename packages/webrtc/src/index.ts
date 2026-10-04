@@ -30,3 +30,9 @@ export type {
   ConnectionQualitySnapshot,
   IcePath
 } from "./quality";
+
+export type {
+  FileTransferDirection,
+  FileTransferProgress,
+  FileTransferState
+} from "./file-transfer";
