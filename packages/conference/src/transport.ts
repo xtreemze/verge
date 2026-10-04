@@ -3,7 +3,10 @@ import type {
   PeerSummary,
   ReceivedFile
 } from "@verge/protocol";
-import type { ConnectionQualitySnapshot } from "@verge/webrtc";
+import type {
+  ConnectionQualitySnapshot,
+  FileTransferProgress
+} from "@verge/webrtc";
 
 export type ConferenceTopology = "mesh" | "sfu";
 
@@ -26,6 +29,10 @@ export interface ConferenceTransportEvents {
     peer: PeerSummary,
     quality: ConnectionQualitySnapshot
   ): void;
+  onFileProgress?(
+    peer: PeerSummary,
+    progress: FileTransferProgress
+  ): void;
   onError?(message: string): void;
 }
 
@@ -42,7 +49,8 @@ export interface ConferenceTransport {
 
   start(): Promise<void>;
   sendChat(text: string): ChatMessage;
-  sendFile(file: File): Promise<void>;
+  sendFile(file: File, transferId?: string): Promise<void>;
+  cancelFileTransfer(transferId: string): void;
   replaceVideoTrack(track: MediaStreamTrack): Promise<void>;
   replaceAudioTrack(track: MediaStreamTrack): Promise<void>;
   close(): void;
