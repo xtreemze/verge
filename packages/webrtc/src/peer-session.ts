@@ -18,10 +18,16 @@ import {
   ICE_RESTART_MAX_ATTEMPTS,
   iceRestartDelay
 } from "./recovery-policy";
-
-const FILE_CHUNK_SIZE = 64 * 1024;
-const FILE_HIGH_WATER_MARK = 4 * 1024 * 1024;
-const FILE_LOW_WATER_MARK = 512 * 1024;
+import {
+  FILE_CHUNK_SIZE,
+  FILE_HIGH_WATER_MARK,
+  FILE_LOW_WATER_MARK,
+  IncomingFileReceiver,
+  parseFileControlMessage,
+  sha256Blob,
+  type FileDone,
+  type FileMetadata
+} from "./file-transfer";
 
 export interface PeerSessionEvents {
   onRemoteStream(peer: PeerSummary, stream: MediaStream): void;
@@ -43,31 +49,6 @@ export interface PeerSessionOptions extends PeerSessionEvents {
     description?: SessionDescription;
     candidate?: IceCandidate;
   }): void;
-}
-
-interface FileMetadata {
-  kind: "meta";
-  id: string;
-  name: string;
-  size: number;
-  mediaType: string;
-  sha256: string;
-}
-
-interface FileDone {
-  kind: "done";
-}
-
-function toHex(bytes: ArrayBuffer): string {
-  return Array.from(new Uint8Array(bytes), (value) =>
-    value.toString(16).padStart(2, "0")
-  ).join("");
-}
-
-async function sha256(blob: Blob): Promise<string> {
-  return toHex(
-    await crypto.subtle.digest("SHA-256", await blob.arrayBuffer())
-  );
 }
 
 async function waitForWritable(
@@ -221,7 +202,7 @@ export class PeerSession {
   }
 
   async sendFile(file: File): Promise<void> {
-    const digest = await sha256(file);
+    const digest = await sha256Blob(file);
     const id = crypto.randomUUID();
     const channel = this.connection.createDataChannel(
       `file:${id}`,
@@ -231,12 +212,14 @@ export class PeerSession {
 
     const metadata: FileMetadata = {
       kind: "meta",
+      version: 1,
       id,
       name: file.name,
       size: file.size,
       mediaType:
         file.type || "application/octet-stream",
-      sha256: digest
+      sha256: digest,
+      chunkSize: FILE_CHUNK_SIZE
     };
 
     await new Promise<void>((resolve, reject) => {
@@ -458,43 +441,71 @@ export class PeerSession {
 
   #receiveFile(channel: RTCDataChannel): void {
     channel.binaryType = "arraybuffer";
-    let metadata: FileMetadata | undefined;
-    const chunks: ArrayBuffer[] = [];
+    let receiver: IncomingFileReceiver | undefined;
+    let processing = Promise.resolve();
 
-    channel.onmessage = async (event) => {
-      if (typeof event.data === "string") {
-        const message = JSON.parse(
-          event.data
-        ) as FileMetadata | FileDone;
-        if (message.kind === "meta") {
-          metadata = message;
-          return;
-        }
+    const abort = async (): Promise<void> => {
+      const active = receiver;
+      receiver = undefined;
+      await active?.abort();
+    };
 
-        if (message.kind === "done" && metadata) {
-          const blob = new Blob(chunks, {
-            type: metadata.mediaType
-          });
-          const digest = await sha256(blob);
-          this.#events.onFile(this.peer, {
-            id: metadata.id,
-            name: metadata.name,
-            mediaType: metadata.mediaType,
-            size: metadata.size,
-            sha256: metadata.sha256,
-            verified:
-              digest === metadata.sha256 &&
-              blob.size === metadata.size,
-            blob
-          });
+    channel.onclose = () => {
+      void abort();
+    };
+
+    channel.onerror = () => {
+      void abort();
+    };
+
+    channel.onmessage = (event) => {
+      processing = processing
+        .then(async () => {
+          if (typeof event.data === "string") {
+            let raw: unknown;
+            try {
+              raw = JSON.parse(event.data);
+            } catch {
+              throw new Error("Malformed file transfer control message.");
+            }
+
+            const message = parseFileControlMessage(raw);
+            if (!message) {
+              throw new Error("Unsupported file transfer control message.");
+            }
+
+            if (message.kind === "meta") {
+              if (receiver) {
+                throw new Error("Duplicate file transfer metadata.");
+              }
+              receiver = await IncomingFileReceiver.create(message);
+              return;
+            }
+
+            if (message.kind === "done") {
+              if (!receiver) {
+                throw new Error("File transfer completed without metadata.");
+              }
+              const completed = receiver;
+              receiver = undefined;
+              const file = await completed.finish();
+              this.#events.onFile(this.peer, file);
+              channel.close();
+            }
+            return;
+          }
+
+          if (event.data instanceof ArrayBuffer) {
+            if (!receiver) {
+              throw new Error("File bytes arrived before metadata.");
+            }
+            await receiver.write(event.data);
+          }
+        })
+        .catch(async () => {
+          await abort();
           channel.close();
-        }
-        return;
-      }
-
-      if (event.data instanceof ArrayBuffer) {
-        chunks.push(event.data);
-      }
+        });
     };
   }
 }
