@@ -39,6 +39,62 @@ function candidateType(
     : undefined;
 }
 
+interface SelectedCandidateLike {
+  type?: unknown;
+}
+
+interface SelectedCandidatePairLike {
+  local?: SelectedCandidateLike;
+  remote?: SelectedCandidateLike;
+}
+
+interface SelectedPairIceTransport {
+  getSelectedCandidatePair?(): SelectedCandidatePairLike | null;
+}
+
+function selectedIceCandidateTypes(
+  connection: RTCPeerConnection
+): {
+  localCandidateType?: RTCIceCandidateType;
+  remoteCandidateType?: RTCIceCandidateType;
+} {
+  const transports: SelectedPairIceTransport[] = [];
+
+  for (const sender of connection.getSenders()) {
+    const dtls = sender.transport as
+      | (RTCDtlsTransport & {
+          iceTransport?: SelectedPairIceTransport;
+        })
+      | null;
+    if (dtls?.iceTransport) transports.push(dtls.iceTransport);
+  }
+
+  for (const receiver of connection.getReceivers()) {
+    const dtls = receiver.transport as
+      | (RTCDtlsTransport & {
+          iceTransport?: SelectedPairIceTransport;
+        })
+      | null;
+    if (dtls?.iceTransport) transports.push(dtls.iceTransport);
+  }
+
+  for (const transport of transports) {
+    const pair = transport.getSelectedCandidatePair?.();
+    if (!pair) continue;
+
+    const localCandidateType = candidateType(pair.local?.type);
+    const remoteCandidateType = candidateType(pair.remote?.type);
+    if (localCandidateType || remoteCandidateType) {
+      return {
+        ...(localCandidateType ? { localCandidateType } : {}),
+        ...(remoteCandidateType ? { remoteCandidateType } : {})
+      };
+    }
+  }
+
+  return {};
+}
+
 export function classifyIcePath(
   local: RTCIceCandidateType | undefined,
   remote: RTCIceCandidateType | undefined
@@ -169,8 +225,9 @@ export async function sampleConnectionQuality(
     }
   });
 
-  let localCandidateType: RTCIceCandidateType | undefined;
-  let remoteCandidateType: RTCIceCandidateType | undefined;
+  const selectedTypes = selectedIceCandidateTypes(connection);
+  let localCandidateType = selectedTypes.localCandidateType;
+  let remoteCandidateType = selectedTypes.remoteCandidateType;
 
   report.forEach((entry) => {
     const stat = entry as unknown as Record<string, unknown>;
@@ -179,14 +236,16 @@ export async function sampleConnectionQuality(
       stat.id === selectedLocalCandidateId &&
       stat.type === "local-candidate"
     ) {
-      localCandidateType = candidateType(stat.candidateType);
+      localCandidateType =
+        localCandidateType ?? candidateType(stat.candidateType);
     }
     if (
       selectedRemoteCandidateId !== undefined &&
       stat.id === selectedRemoteCandidateId &&
       stat.type === "remote-candidate"
     ) {
-      remoteCandidateType = candidateType(stat.candidateType);
+      remoteCandidateType =
+        remoteCandidateType ?? candidateType(stat.candidateType);
     }
   });
 
