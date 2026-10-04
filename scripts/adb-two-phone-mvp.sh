@@ -34,11 +34,7 @@ if [[ -z "$room" ]]; then
   if command -v openssl >/dev/null 2>&1; then
     room="$(openssl rand -hex 16)"
   else
-    room="$(python3 - <<'PY'
-import secrets
-print(secrets.token_hex(16))
-PY
-)"
+    room="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(16).toString("hex"))')"
   fi
 fi
 
@@ -70,12 +66,7 @@ launch_device() {
   local serial="$1"
   local name="$2"
   local encoded_name
-  encoded_name="$(python3 - "$name" <<'PY'
-import sys
-from urllib.parse import quote
-print(quote(sys.argv[1]))
-PY
-)"
+  encoded_name="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$name")"
   local url="http://localhost:5173/?room=${room}&name=${encoded_name}&debug=1"
 
   adb -s "$serial" shell am start -W     -a android.intent.action.VIEW     -d "$url"     com.android.chrome >/dev/null
