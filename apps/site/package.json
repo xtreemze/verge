@@ -7,11 +7,16 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "astro": "7.3.5",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "@verge/protocol": "workspace:*"
   }
 }
