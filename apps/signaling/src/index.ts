@@ -104,11 +104,10 @@ const httpServer = createServer((request, response) => {
   }
 
   if (request.method === "GET" && path === "/api/ice") {
+    const origin = requestOrigin(request);
     if (
-      !isSignalingOriginAllowed(
-        requestOrigin(request),
-        originPolicy
-      )
+      origin &&
+      !isSignalingOriginAllowed(origin, originPolicy)
     ) {
       sendJson(response, 403, { error: "Origin is not allowed." });
       return;
