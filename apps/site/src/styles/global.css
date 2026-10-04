@@ -720,6 +720,19 @@ input:focus-visible {
   font-size: 0.88rem;
 }
 
+.capability > span:first-child {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.capability-kind {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .capability-state {
   border-radius: 999px;
   background: rgb(255 255 255 / 5%);
@@ -778,6 +791,21 @@ input:focus-visible {
 
 .field-note[data-state="error"],
 .device-status[data-state="error"] {
+  color: var(--danger);
+}
+
+.browser-status {
+  margin: 1rem 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.browser-status[data-state="pass"] {
+  color: var(--success);
+}
+
+.browser-status[data-state="fail"] {
   color: var(--danger);
 }
 
@@ -876,6 +904,15 @@ input:focus-visible {
 .progress-list li[data-state="pass"] .progress-dot {
   border-color: var(--success);
   background: var(--success);
+}
+
+.progress-list li[data-state="fail"] {
+  color: var(--danger);
+}
+
+.progress-list li[data-state="fail"] .progress-dot {
+  border-color: var(--danger);
+  background: var(--danger);
 }
 
 .summary-note {
