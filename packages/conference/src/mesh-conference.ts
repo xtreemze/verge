@@ -68,10 +68,21 @@ export class MeshConference implements ConferenceTransport {
     return message;
   }
 
-  async sendFile(file: File): Promise<void> {
+  async sendFile(
+    file: File,
+    transferId = crypto.randomUUID()
+  ): Promise<void> {
     await Promise.all(
-      Array.from(this.#sessions.values(), (session) => session.sendFile(file))
+      Array.from(this.#sessions.values(), (session) =>
+        session.sendFile(file, transferId)
+      )
     );
+  }
+
+  cancelFileTransfer(transferId: string): void {
+    for (const session of this.#sessions.values()) {
+      session.cancelFileTransfer(transferId);
+    }
   }
 
   async replaceVideoTrack(track: MediaStreamTrack): Promise<void> {
@@ -150,7 +161,9 @@ export class MeshConference implements ConferenceTransport {
       onFile: (remotePeer, file) =>
         this.#options.onFile(remotePeer, file),
       onQualityChange: (remotePeer, quality) =>
-        this.#options.onPeerQuality?.(remotePeer, quality)
+        this.#options.onPeerQuality?.(remotePeer, quality),
+      onFileProgress: (remotePeer, progress) =>
+        this.#options.onFileProgress?.(remotePeer, progress)
     });
 
     this.#sessions.set(peer.id, session);
