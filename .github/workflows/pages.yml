@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - "apps/site/**"
+      - "packages/media/**"
       - "packages/protocol/**"
+      - "packages/webrtc/src/codec-policy.ts"
+      - "packages/webrtc/src/codecs.ts"
+      - "packages/webrtc/package.json"
       - "package.json"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
