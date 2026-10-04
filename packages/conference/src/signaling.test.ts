@@ -65,7 +65,11 @@ describe("SignalingClient", () => {
       { onDisconnected: disconnected, onReconnected: reconnected }
     );
 
-    const connecting = client.connect("room-abc", "Alice");
+    const connecting = client.connect(
+      "room-abc",
+      "Alice",
+      "v1.payload.signature"
+    );
     const first = FakeWebSocket.instances[0]!;
     first.open();
     await connecting;
@@ -73,7 +77,8 @@ describe("SignalingClient", () => {
     expect(JSON.parse(first.sent[0]!)).toEqual({
       type: "join",
       roomId: "room-abc",
-      displayName: "Alice"
+      displayName: "Alice",
+      invite: "v1.payload.signature"
     });
 
     first.networkClose();
