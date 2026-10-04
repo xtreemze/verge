@@ -56,6 +56,27 @@ export interface ReceivedFile {
 export const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 export const PEER_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/;
 
+const ROOM_ID_RANDOM_BYTES = 16;
+
+export function createRoomId(): string {
+  const webCrypto = globalThis.crypto;
+  if (
+    !webCrypto ||
+    typeof webCrypto.getRandomValues !== "function"
+  ) {
+    throw new Error(
+      "Secure random room IDs require the Web Crypto API."
+    );
+  }
+
+  const bytes = webCrypto.getRandomValues(
+    new Uint8Array(ROOM_ID_RANDOM_BYTES)
+  );
+  return Array.from(bytes, (value) =>
+    value.toString(16).padStart(2, "0")
+  ).join("");
+}
+
 const MAX_SDP_LENGTH = 220_000;
 const MAX_CANDIDATE_LENGTH = 8_192;
 const MAX_MID_LENGTH = 256;
