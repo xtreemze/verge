@@ -38,6 +38,10 @@ import {
   type FileTransferProgress
 } from "@verge/webrtc";
 import { loadIceServers } from "./ice-config";
+import {
+  createProtectedRoom,
+  roomInviteEndpoint
+} from "./room-invite";
 import { sessionBootstrap } from "./session-bootstrap";
 
 interface RemotePeer {
@@ -131,6 +135,7 @@ function connectionQualityTitle(
 export function App() {
   const bootstrap = sessionBootstrap(location.search);
   const [roomId, setRoomId] = createSignal(bootstrap.roomId);
+  const [invite, setInvite] = createSignal(bootstrap.invite);
   const [displayName, setDisplayName] = createSignal(bootstrap.displayName);
   const [audioMode, setAudioMode] = createSignal<AudioMode>("speech");
   const [localStream, setLocalStream] = createSignal<MediaStream>();
@@ -253,13 +258,13 @@ export function App() {
       setStatus("Enter your name.");
       return;
     }
-    const normalizedRoomId = roomId().trim();
-    if (!isValidRoomId(normalizedRoomId)) {
+
+    let activeRoomId = roomId().trim();
+    let activeInvite = invite();
+
+    if (!isValidRoomId(activeRoomId)) {
       setStatus("Room identifier must be 1–64 URL-safe characters.");
       return;
-    }
-    if (normalizedRoomId !== roomId()) {
-      setRoomId(normalizedRoomId);
     }
     if (!secureContext) {
       setStatus("Camera and microphone require HTTPS or localhost.");
@@ -267,9 +272,27 @@ export function App() {
     }
 
     setJoining(true);
-    setStatus("Requesting camera and microphone…");
 
     try {
+      const inviteEndpoint = roomInviteEndpoint();
+      if (inviteEndpoint && !activeInvite) {
+        if (bootstrap.requestedRoom) {
+          throw new Error(
+            "This protected room requires its full invitation link."
+          );
+        }
+
+        setStatus("Creating protected room…");
+        const created = await createProtectedRoom(inviteEndpoint);
+        activeRoomId = created.roomId;
+        activeInvite = created.invite;
+        setRoomId(activeRoomId);
+        setInvite(activeInvite);
+      } else if (activeRoomId !== roomId()) {
+        setRoomId(activeRoomId);
+      }
+
+      setStatus("Requesting camera and microphone…");
       const stream = await acquireLocalMedia({ audioMode: audioMode() });
       setLocalStream(stream);
       const cameraTrack = stream.getVideoTracks()[0];
@@ -290,15 +313,21 @@ export function App() {
         topology: "mesh",
         signalingUrl: signalingUrl(),
         iceTransportPolicy: configuredIceTransportPolicy(),
-        roomId: normalizedRoomId,
+        roomId: activeRoomId,
         displayName: displayName().trim(),
+        ...(activeInvite ? { invite: activeInvite } : {}),
         localStream: stream,
         ...(iceServers ? { iceServers } : {}),
         onReady: () => {
           setConnected(true);
           setStatus("Connected");
           const url = new URL(location.href);
-          url.searchParams.set("room", normalizedRoomId);
+          url.searchParams.set("room", activeRoomId);
+          if (activeInvite) {
+            url.searchParams.set("invite", activeInvite);
+          } else {
+            url.searchParams.delete("invite");
+          }
           url.searchParams.delete("name");
           history.replaceState(null, "", url);
         },
@@ -660,6 +689,9 @@ export function App() {
     const url = new URL(location.href);
     url.search = "";
     url.searchParams.set("room", roomId());
+    if (invite()) {
+      url.searchParams.set("invite", invite());
+    }
     await navigator.clipboard.writeText(url.toString());
     setStatus("Invite link copied");
   }
@@ -739,9 +771,16 @@ export function App() {
             </div>
 
             <div class="privacy-note">
-              <strong>Private by transport.</strong> WebRTC encrypts media and
-              data in transit. TURN may relay encrypted packets when direct
-              connectivity is impossible.
+              <strong>
+                {roomInviteEndpoint()
+                  ? "Protected invite."
+                  : "Private by transport."}
+              </strong>{" "}
+              {roomInviteEndpoint()
+                ? "Production rooms require a signed, expiring invitation link. "
+                : ""}
+              WebRTC encrypts media and data in transit. TURN may relay
+              encrypted packets when direct connectivity is impossible.
             </div>
             <p class="status" role="status" data-testid="lobby-status">{status()}</p>
           </section>
