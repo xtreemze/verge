@@ -168,7 +168,9 @@ export class MeshConference implements ConferenceTransport {
       initiator,
       localStream: this.#options.localStream,
       iceServers: this.#iceServers,
-      iceTransportPolicy: this.#options.iceTransportPolicy,
+      ...(this.#options.iceTransportPolicy
+        ? { iceTransportPolicy: this.#options.iceTransportPolicy }
+        : {}),
       sendSignal: (payload) => {
         this.#signaling.send({ type: "signal", to: peer.id, ...payload });
       },
