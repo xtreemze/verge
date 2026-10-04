@@ -101,9 +101,8 @@ export class SignalingClient {
       };
 
       socket.onclose = () => {
-        if (this.#socket === socket) {
-          this.#socket = undefined;
-        }
+        if (this.#socket !== socket) return;
+        this.#socket = undefined;
 
         if (!opened && !this.#hasConnected) {
           reject(new Error("Signaling connection failed"));
