@@ -1,4 +1,9 @@
 import {
+  acquireLocalMedia,
+  stopStream,
+  supportsNativeBackgroundBlur
+} from "@verge/media";
+import {
   createRoomId,
   isValidRoomId
 } from "@verge/protocol";
@@ -21,6 +26,9 @@ function browserCapabilities(): BrowserCapabilitySnapshot {
     webrtc,
     userMedia:
       typeof mediaDevices?.getUserMedia === "function",
+    codecPreferences:
+      typeof window.RTCRtpTransceiver === "function" &&
+      typeof RTCRtpTransceiver.prototype.setCodecPreferences === "function",
     dataChannel:
       webrtc &&
       "createDataChannel" in RTCPeerConnection.prototype,
@@ -252,9 +260,7 @@ export function initializeOnboarding(): void {
 
   function stopPreview(): void {
     if (previewStream) {
-      previewStream.getTracks().forEach((track) =>
-        track.stop()
-      );
+      stopStream(previewStream);
       previewStream = undefined;
     }
 
@@ -291,18 +297,9 @@ export function initializeOnboarding(): void {
     }
 
     try {
-      previewStream =
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
+      previewStream = await acquireLocalMedia({
+        audioMode: "speech"
+      });
 
       if (preview instanceof HTMLVideoElement) {
         preview.srcObject = previewStream;
@@ -319,13 +316,19 @@ export function initializeOnboarding(): void {
           previewStream.getVideoTracks().length;
         const audioTracks =
           previewStream.getAudioTracks().length;
+        const cameraTrack =
+          previewStream.getVideoTracks()[0];
+        const blur = cameraTrack
+          ? supportsNativeBackgroundBlur(cameraTrack)
+          : false;
         deviceStatus.dataset.state = "";
         deviceStatus.textContent =
           "Ready: " +
           videoTracks +
           " camera track and " +
           audioTracks +
-          " microphone track available.";
+          " microphone track available. Native background blur: " +
+          (blur ? "available." : "not exposed by this camera/browser.");
       }
 
       if (progressDevices instanceof HTMLElement) {
