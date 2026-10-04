@@ -20,15 +20,17 @@ import {
   setTrackEnabled,
   stopStream,
   supportsAudioOutputSelection,
+  supportsDisplayCapture,
   supportsNativeBackgroundBlur,
   type AudioMode,
   type MediaDeviceGroups,
   type ScreenShareMode
 } from "@verge/media";
-import type {
-  ChatMessage,
-  PeerSummary,
-  ReceivedFile
+import {
+  isValidRoomId,
+  type ChatMessage,
+  type PeerSummary,
+  type ReceivedFile
 } from "@verge/protocol";
 import {
   supportedVideoMimeTypes,
@@ -36,6 +38,7 @@ import {
   type FileTransferProgress
 } from "@verge/webrtc";
 import { loadIceServers } from "./ice-config";
+import { sessionBootstrap } from "./session-bootstrap";
 
 interface RemotePeer {
   peer: PeerSummary;
@@ -60,14 +63,6 @@ interface Download {
   from: string;
   verified: boolean;
   url: string;
-}
-
-function randomRoom(): string {
-  return crypto.randomUUID().replaceAll("-", "").slice(0, 10);
-}
-
-function initialRoom(): string {
-  return new URLSearchParams(location.search).get("room") ?? randomRoom();
 }
 
 function signalingUrl(): string {
@@ -121,8 +116,9 @@ function connectionQualityTitle(
 }
 
 export function App() {
-  const [roomId, setRoomId] = createSignal(initialRoom());
-  const [displayName, setDisplayName] = createSignal("");
+  const bootstrap = sessionBootstrap(location.search);
+  const [roomId, setRoomId] = createSignal(bootstrap.roomId);
+  const [displayName, setDisplayName] = createSignal(bootstrap.displayName);
   const [audioMode, setAudioMode] = createSignal<AudioMode>("speech");
   const [localStream, setLocalStream] = createSignal<MediaStream>();
   const [remotePeers, setRemotePeers] = createSignal<RemotePeer[]>([]);
@@ -155,6 +151,17 @@ export function App() {
   const [switchingDevice, setSwitchingDevice] = createSignal(false);
   const audioOutputSelectionAvailable =
     supportsAudioOutputSelection();
+  const displayCaptureAvailable = supportsDisplayCapture();
+  const secureContext = window.isSecureContext;
+
+  if (bootstrap.debug) {
+    console.info("[verge:diagnostics]", {
+      secureContext,
+      displayCaptureAvailable,
+      signalingUrl: signalingUrl(),
+      userAgent: navigator.userAgent
+    });
+  }
 
   let conference: ConferenceTransport | undefined;
   let displayStream: MediaStream | undefined;
@@ -233,8 +240,12 @@ export function App() {
       setStatus("Enter your name.");
       return;
     }
-    if (!roomId().trim()) {
-      setStatus("Enter a room identifier.");
+    if (!isValidRoomId(roomId().trim())) {
+      setStatus("Room identifier must be 32 URL-safe characters.");
+      return;
+    }
+    if (!secureContext) {
+      setStatus("Camera and microphone require HTTPS or localhost.");
       return;
     }
 
@@ -565,6 +576,10 @@ export function App() {
     }
 
     if (!conference) return;
+    if (!displayCaptureAvailable) {
+      setStatus("Screen sharing is unavailable in this browser.");
+      return;
+    }
     try {
       const stream = await acquireDisplayMedia({ mode: screenShareMode() });
       const track = stream.getVideoTracks()[0];
@@ -576,8 +591,12 @@ export function App() {
       await conference.replaceVideoTrack(track);
       setScreenSharing(true);
       track.onended = () => void stopScreenShare();
-    } catch {
-      setStatus("Screen sharing was cancelled.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Screen sharing was cancelled."
+      );
     }
   }
 
@@ -688,7 +707,12 @@ export function App() {
                   <option value="original">Original · stereo / unprocessed</option>
                 </select>
               </label>
-              <button class="primary" disabled={joining()} onClick={() => void join()}>
+              <button
+                class="primary"
+                data-testid="join-room"
+                disabled={joining()}
+                onClick={() => void join()}
+              >
                 {joining() ? "Joining…" : "Join room"}
               </button>
             </div>
@@ -698,7 +722,7 @@ export function App() {
               data in transit. TURN may relay encrypted packets when direct
               connectivity is impossible.
             </div>
-            <p class="status" role="status">{status()}</p>
+            <p class="status" role="status" data-testid="lobby-status">{status()}</p>
           </section>
         }
       >
@@ -807,11 +831,14 @@ export function App() {
                 </label>
                 <button
                   classList={{ active: screenSharing() }}
+                  disabled={!displayCaptureAvailable && !screenSharing()}
                   onClick={() => void toggleScreenShare()}
                   title={
-                    screenShareMode() === "detail"
-                      ? "Favor text and interface clarity at a lower frame rate"
-                      : "Favor smoother animation and video at a higher frame rate"
+                    !displayCaptureAvailable
+                      ? "Screen sharing is unavailable in this browser"
+                      : screenShareMode() === "detail"
+                        ? "Favor text and interface clarity at a lower frame rate"
+                        : "Favor smoother animation and video at a higher frame rate"
                   }
                 >
                   {screenSharing()
@@ -911,13 +938,16 @@ export function App() {
                 </div>
               </details>
 
-              <details class="diagnostics">
+              <details class="diagnostics" open={bootstrap.debug}>
                 <summary>Media capabilities</summary>
+                <span>Secure context: {secureContext ? "yes" : "no"}</span>
+                <span>Display capture: {displayCaptureAvailable ? "available" : "unavailable"}</span>
                 <span>Video codecs: {codecs().join(", ") || "not detected"}</span>
                 <span>Audio: Opus preferred</span>
                 <span>Topology: {conference?.topology ?? "mesh"} · direct peer media</span>
+                <span>Signaling: {signalingUrl()}</span>
               </details>
-              <p class="status" role="status">{status()}</p>
+              <p class="status" role="status" data-testid="conference-status">{status()}</p>
             </section>
 
             <aside class="side-panel">
