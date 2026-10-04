@@ -30,7 +30,7 @@ export function reportToJUnit(report) {
   const cases = report.checks
     .map((check) => {
       const attrs =
-        `name="${xmlEscape(check.name)}" classname="android.m﻿vp" time="${(
+        `name="${xmlEscape(check.name)}" classname="android.mvp" time="${(
           (check.durationMs ?? 0) / 1000
         ).toFixed(3)}"`;
       if (check.status === "fail") {
