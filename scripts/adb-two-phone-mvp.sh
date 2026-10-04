@@ -38,8 +38,8 @@ if [[ -z "$room" ]]; then
   fi
 fi
 
-if [[ ! "$room" =~ ^[A-Za-z0-9_-]{32}$ ]]; then
-  echo "VERGE_ROOM_ID must be a valid 32-character Verge room identifier." >&2
+if [[ ! "$room" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+  echo "VERGE_ROOM_ID must be a valid 1–64 character Verge room identifier." >&2
   exit 1
 fi
 
