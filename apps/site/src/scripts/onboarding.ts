@@ -1,7 +1,6 @@
 import {
   acquireLocalMedia,
-  stopStream,
-  supportsNativeBackgroundBlur
+  stopStream
 } from "@verge/media";
 import {
   createRoomId,
@@ -316,19 +315,13 @@ export function initializeOnboarding(): void {
           previewStream.getVideoTracks().length;
         const audioTracks =
           previewStream.getAudioTracks().length;
-        const cameraTrack =
-          previewStream.getVideoTracks()[0];
-        const blur = cameraTrack
-          ? supportsNativeBackgroundBlur(cameraTrack)
-          : false;
         deviceStatus.dataset.state = "";
         deviceStatus.textContent =
           "Ready: " +
           videoTracks +
           " camera track and " +
           audioTracks +
-          " microphone track available. Native background blur: " +
-          (blur ? "available." : "not exposed by this camera/browser.");
+          " microphone track available.";
       }
 
       if (progressDevices instanceof HTMLElement) {
