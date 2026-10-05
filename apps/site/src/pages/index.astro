@@ -69,9 +69,9 @@ const features = [
   },
   {
     icon: "shield",
-    title: "Server-minimal",
+    title: "Authenticated room access",
     copy:
-      "Signaling handles room membership and SDP/ICE exchange. Media and app data stay on WebRTC paths."
+      "Signed, expiring invitations gate production joins and TURN credentials are short-lived and server-derived. Media and app data stay on WebRTC paths."
   }
 ] as const;
 ---
@@ -87,8 +87,9 @@ const features = [
       <p>
         Verge keeps small-room conferencing close to the people in
         the call: camera, audio, screen sharing, chat, and verified
-        file exchange over WebRTC, with a minimal signaling service
-        for rendezvous.
+        file exchange over WebRTC. Production rooms add signed,
+        expiring invitations and short-lived TURN credentials without
+        moving conference media through the signaling plane.
       </p>
 
       <div class="hero-actions">
@@ -104,9 +105,9 @@ const features = [
       </div>
 
       <ul class="hero-facts" aria-label="Verge highlights">
-        <li>Opus audio</li>
-        <li>Direct ICE when available</li>
-        <li>Browser + Tauri path</li>
+        <li>MVP release candidate</li>
+        <li>Direct + TURN-certified</li>
+        <li>Android acceptance harness</li>
       </ul>
     </div>
 
@@ -148,8 +149,10 @@ const features = [
       <p>
         Verge separates rendezvous from the actual conversation.
         Signaling helps peers find each other; WebRTC carries the
-        media and data. TURN remains available when direct
-        connectivity is not possible.
+        media and data. Production rooms authenticate entry with
+        expiring invitations, derive short-lived TURN credentials,
+        and recover bounded signaling interruptions without moving
+        conference media into the control plane.
       </p>
     </div>
 
@@ -168,10 +171,12 @@ const features = [
 
       <article class="arch-card">
         <span class="arch-index">02 · RENDEZVOUS</span>
-        <h3>Signaling stays small</h3>
+        <h3>Control stays small</h3>
         <p>
-          The service tracks ephemeral room membership and forwards
-          SDP/ICE messages. It does not ingest conference media.
+          The production control plane authenticates room entry,
+          issues time-limited TURN credentials, tracks ephemeral
+          membership, and forwards SDP/ICE messages. It does not
+          ingest conference media.
         </p>
         <div class="flow-line" aria-hidden="true">
           <span>SDP/ICE</span><i></i><span>room</span>
