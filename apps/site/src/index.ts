@@ -65,7 +65,7 @@ type ProjectGraphElement = HTMLElement & {
 
 async function upgradeArchitectureGraph(): Promise<void> {
   const graph = document.querySelector<ProjectGraphElement>("#verge-architecture-graph");
-  const fallback = document.querySelector<HTMLElement>("[data-luum-architecture-fallback]");
+  const fallback = document.querySelector<HTMLElement>("[data-project-architecture-fallback]");
   if (!graph || !fallback) return;
 
   try {
