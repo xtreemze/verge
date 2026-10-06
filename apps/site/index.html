@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Verge is browser-first peer-to-peer video, audio, screen sharing, chat, and verified file transfer for small rooms."
+    />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="color-scheme" content="dark" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Verge" />
+    <meta property="og:title" content="Verge — peer-to-peer conferencing at the edge" />
+    <meta
+      property="og:description"
+      content="Browser-first peer-to-peer conferencing, screen sharing, chat, and verified file transfer."
+    />
+    <meta property="og:url" content="https://xtreemze.github.io/verge/" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href="https://xtreemze.github.io/verge/" />
+    <link rel="icon" href="%BASE_URL%favicon.svg" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+    <title>Verge — peer-to-peer conferencing at the edge</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="%BASE_URL%" aria-label="Verge home">
+        <span class="wordmark-mark" aria-hidden="true">V</span>
+        <span>Verge</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="%BASE_URL%" aria-current="page">Overview</a>
+        <a href="%BASE_URL%onboarding/">Onboarding</a>
+        <a class="nav-github" href="https://github.com/xtreemze/verge">
+          GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Browser-first · peer-to-peer by default</p>
+          <h1>Meet at the edge.</h1>
+          <p>
+            Verge keeps small-room conferencing close to the people in the call:
+            camera, audio, screen sharing, chat, and verified file exchange over WebRTC.
+            Production rooms add signed, expiring invitations and short-lived TURN
+            credentials without moving conference media through the signaling plane.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="%BASE_URL%onboarding/">Start onboarding</a>
+            <a class="button ghost" href="https://github.com/xtreemze/verge">View source</a>
+          </div>
+          <ul class="hero-facts" aria-label="Verge highlights">
+            <li>MVP release candidate</li>
+            <li>Direct + TURN-certified</li>
+            <li>Android acceptance harness</li>
+          </ul>
+        </div>
+
+        <div class="conference-preview" aria-label="Illustrative four-person Verge room">
+          <div class="preview-topbar">
+            <span class="preview-room">studio-42</span>
+            <span class="preview-status">4 peers · negotiated media</span>
+          </div>
+          <div class="preview-grid">
+            <div class="preview-tile"><span class="preview-person"></span><span class="preview-name">You</span></div>
+            <div class="preview-tile"><span class="preview-person"></span><span class="preview-name">Mina</span></div>
+            <div class="preview-tile"><span class="preview-person"></span><span class="preview-name">Alex</span></div>
+            <div class="preview-tile"><span class="preview-person"></span><span class="preview-name">Sam</span></div>
+          </div>
+          <div class="preview-controls" aria-hidden="true">
+            <span class="preview-control">Mic</span>
+            <span class="preview-control">Cam</span>
+            <span class="preview-control">Share</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="architecture-title">
+        <div class="section-heading">
+          <p class="kicker">Architecture</p>
+          <h2 id="architecture-title">Direct where it matters.</h2>
+          <p>
+            Verge separates rendezvous from the actual conversation. Signaling helps
+            peers find each other; WebRTC carries media and data. Production rooms
+            authenticate entry and recover bounded signaling interruptions without
+            moving conference media into the control plane.
+          </p>
+        </div>
+
+        <luum-embed-graph
+          id="verge-architecture-graph"
+          aria-label="Verge conference architecture"
+          hidden
+          style="
+            --luum-embed-paper:#111419;
+            --luum-embed-panel:#171b21;
+            --luum-embed-ink:#edf0f4;
+            --luum-embed-line:#3a424e;
+            --luum-embed-accent:#9bc2ff;
+            --luum-embed-focus:#9bc2ff;
+            --luum-embed-radius:1rem;
+            --luum-embed-shadow:none;
+            --luum-embed-graph-height:24rem;
+          "
+        ></luum-embed-graph>
+
+        <div class="architecture-grid" data-luum-architecture-fallback>
+          <article class="arch-card">
+            <span class="arch-index">01 · CAPTURE</span>
+            <h3>Your browser owns your devices</h3>
+            <p>Camera, microphone, display capture, device selection, and media processing stay at the client boundary.</p>
+            <div class="flow-line" aria-hidden="true"><span>camera</span><i></i><span>peer</span></div>
+          </article>
+          <article class="arch-card">
+            <span class="arch-index">02 · RENDEZVOUS</span>
+            <h3>Control stays small</h3>
+            <p>The control plane authenticates room entry, issues time-limited TURN credentials, tracks ephemeral membership, and forwards SDP/ICE messages.</p>
+            <div class="flow-line" aria-hidden="true"><span>SDP/ICE</span><i></i><span>room</span></div>
+          </article>
+          <article class="arch-card">
+            <span class="arch-index">03 · TRANSPORT</span>
+            <h3>Peers carry the room</h3>
+            <p>SRTP handles media and ordered data channels carry chat and files. A topology-neutral contract leaves room for a future SFU.</p>
+            <div class="flow-line" aria-hidden="true"><span>WebRTC</span><i></i><span>WebRTC</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="kicker">Everything in the room</p>
+          <h2>One surface for the call.</h2>
+          <p>
+            Verge keeps the capability set explicit and browser-owned wherever the
+            platform already provides the primitive.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">CAM</span><h3>Camera + microphone</h3><p>Standards-based WebRTC capture and negotiated media for small-room conferencing.</p></article>
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">SCR</span><h3>Screen sharing</h3><p>Share a screen, window, or tab and switch back to camera without rebuilding the room.</p></article>
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">MSG</span><h3>Chat + files</h3><p>Peer-to-peer text chat and chunked, SHA-256 verified file exchange.</p></article>
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">AUD</span><h3>Audio profiles</h3><p>Speech mode requests echo cancellation and noise suppression; original-audio mode preserves stereo.</p></article>
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">RTC</span><h3>Runtime codec policy</h3><p>Peers apply a shared preference policy only to codecs the current browser actually exposes.</p></article>
+          <article class="feature-card"><span class="feature-icon" aria-hidden="true">AUTH</span><h3>Authenticated room access</h3><p>Signed, expiring invitations gate production joins while media and app data stay on WebRTC paths.</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="codec-panel">
+          <div class="codec-copy">
+            <p class="kicker">Media policy</p>
+            <h3>Capability first, not codec dogma.</h3>
+            <p>
+              Verge starts from the browser's actual WebRTC capabilities and applies
+              the same preference policy shown here before negotiation. Unsupported
+              formats are skipped; the exact result remains a runtime property.
+            </p>
+          </div>
+          <ul class="codec-list" id="codec-list" aria-label="Preferred WebRTC codecs">
+            <li><strong>Loading runtime policy…</strong><span>JavaScript enhancement</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="cta-panel">
+          <p class="kicker">Open source · self-hostable</p>
+          <h2>Bring up a room from the repo.</h2>
+          <p>
+            The browser client and signaling service live in one pnpm workspace.
+            GitHub Pages hosts this static introduction and onboarding layer;
+            signaling remains a separate runtime service by design.
+          </p>
+          <div class="command" aria-label="Development commands"><span>$</span><span>pnpm install&nbsp;&nbsp;&amp;&amp;&nbsp;&nbsp;pnpm dev</span></div>
+          <div class="hero-actions">
+            <a class="button primary" href="%BASE_URL%onboarding/">Check this browser</a>
+            <a class="button ghost" href="https://github.com/xtreemze/verge#development">Development setup</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="wordmark footer-wordmark" href="%BASE_URL%">
+          <span class="wordmark-mark" aria-hidden="true">V</span><span>Verge</span>
+        </a>
+        <p>Browser-first conferencing. Peer-to-peer by default, server-minimal by design.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/xtreemze/verge">Source</a>
+        <a href="https://github.com/xtreemze/verge/tree/main/docs">Architecture</a>
+        <a href="%BASE_URL%onboarding/">Get ready</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
