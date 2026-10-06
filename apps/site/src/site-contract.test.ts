@@ -22,9 +22,9 @@ describe("Vite project-site contract", () => {
     expect(config).toContain("onboarding");
   });
 
-  it("keeps the presentation readable without optional Lūm enhancement", () => {
+  it("keeps the presentation readable without optional project-site enhancement", () => {
     const overview = read("../index.html");
-    expect(overview).toContain("data-luum-architecture-fallback");
+    expect(overview).toContain("data-project-architecture-fallback");
     expect(overview).toContain("<xt-project-graph");
     expect(overview).toContain("Direct where it matters.");
     expect(read("../src/index.ts")).toContain(
