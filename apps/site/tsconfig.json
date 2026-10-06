@@ -1,5 +1,9 @@
 {
-  "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "vite.config.ts"]
 }
