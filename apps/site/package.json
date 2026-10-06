@@ -4,16 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "typecheck": "astro check",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
-    "astro": "7.3.5",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
     "vitest": "5.0.3"
   },
   "dependencies": {

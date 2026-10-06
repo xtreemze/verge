@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Check Verge browser capabilities and camera/microphone readiness before joining a call."
+    />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="canonical" href="https://xtreemze.github.io/verge/onboarding/" />
+    <link rel="icon" href="%BASE_URL%favicon.svg" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+    <title>Get ready for Verge</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="%BASE_URL%" aria-label="Verge home">
+        <span class="wordmark-mark" aria-hidden="true">V</span>
+        <span>Verge</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="%BASE_URL%">Overview</a>
+        <a href="%BASE_URL%onboarding/" aria-current="page">Onboarding</a>
+        <a class="nav-github" href="https://github.com/xtreemze/verge">
+          GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <div class="onboarding-shell" data-onboarding>
+        <div class="onboarding-main">
+          <header class="onboarding-hero">
+            <p class="eyebrow">Three checks · no account</p>
+            <h1>Get ready for Verge.</h1>
+            <p>
+              Confirm the core WebRTC surface Verge needs, prepare a room code,
+              and test camera and microphone access. Screen sharing is reported
+              separately because it is useful but not required to join a call.
+            </p>
+          </header>
+
+          <noscript>
+            <p class="onboarding-card">
+              JavaScript is required for browser capability and device checks.
+              You can still run Verge from the repository.
+            </p>
+          </noscript>
+
+          <div class="onboarding-steps">
+            <section class="onboarding-card" aria-labelledby="browser-title">
+              <div class="step-label"><span>1</span> Browser readiness</div>
+              <h2 id="browser-title">Check the platform surface.</h2>
+              <p>
+                Core readiness requires a secure context, WebRTC, media capture,
+                codec preference control, data channels, and secure random
+                identifiers. Screen sharing is optional.
+              </p>
+              <ul class="capability-list">
+                <li class="capability" id="cap-secure" data-required="true"><span><strong>Secure context</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-webrtc" data-required="true"><span><strong>WebRTC</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-user-media" data-required="true"><span><strong>Camera + microphone API</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-codec-preferences" data-required="true"><span><strong>WebRTC codec preferences</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-data-channel" data-required="true"><span><strong>WebRTC data channels</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-secure-random" data-required="true"><span><strong>Secure room IDs</strong><small class="capability-kind">Required</small></span><span class="capability-state">Checking</span></li>
+                <li class="capability" id="cap-display-capture" data-required="false"><span><strong>Screen sharing</strong><small class="capability-kind">Optional</small></span><span class="capability-state">Checking</span></li>
+              </ul>
+              <p class="browser-status" id="browser-status" role="status">
+                Checking core conferencing support…
+              </p>
+            </section>
+
+            <section class="onboarding-card" aria-labelledby="room-title">
+              <div class="step-label"><span>2</span> Room</div>
+              <h2 id="room-title">Choose a room code.</h2>
+              <p>
+                Room identifiers are routing metadata, not passwords. Generate
+                creates a 128-bit random identifier using the canonical Verge room contract.
+              </p>
+              <div class="field">
+                <label for="room-id">Room code</label>
+                <div class="input-row">
+                  <input id="room-id" name="room" type="text" minlength="1" maxlength="64" pattern="[A-Za-z0-9_-]+" autocomplete="off" spellcheck="false" aria-describedby="room-note" />
+                  <button type="button" id="generate-room">Generate</button>
+                </div>
+                <span class="field-note" id="room-note" aria-live="polite">
+                  Letters, numbers, underscores, and hyphens; up to 64 characters.
+                </span>
+              </div>
+              <div class="room-handoff">
+                <span class="field-note">Prepared room</span><br />
+                <strong class="room-code" id="room-output">—</strong>
+                <div class="handoff-actions"><button type="button" id="copy-room">Copy room code</button></div>
+                <p class="handoff-note" id="copy-status" aria-live="polite"></p>
+              </div>
+            </section>
+
+            <section class="onboarding-card" aria-labelledby="devices-title">
+              <div class="step-label"><span>3</span> Devices + handoff</div>
+              <h2 id="devices-title">Verify capture before the call.</h2>
+              <p>
+                The test uses the same speech-oriented capture profile as the
+                conference client. The browser remains the permission authority.
+              </p>
+              <div class="device-actions">
+                <button class="button primary" type="button" id="test-devices">Test camera + microphone</button>
+                <button type="button" id="stop-devices" disabled>Stop test</button>
+              </div>
+              <p class="permission-note">This page does not upload or record the preview.</p>
+              <div class="preview-frame">
+                <video class="device-preview" id="device-preview" autoplay muted playsinline hidden></video>
+              </div>
+              <p class="device-status" id="device-status" aria-live="polite">Device test has not run yet.</p>
+              <div class="room-handoff">
+                <h3>Continue to Verge</h3>
+                <p class="handoff-note">The handoff from this page carries only the room code.</p>
+                <div class="handoff-actions">
+                  <a class="button primary" id="launch-verge" href="#" hidden>Open Verge</a>
+                  <a class="button primary" id="open-development" href="https://github.com/xtreemze/verge#development">Run Verge locally</a>
+                  <a class="button ghost" href="https://github.com/xtreemze/verge/tree/main/docs">Read architecture</a>
+                </div>
+                <p class="handoff-note" id="handoff-status">
+                  This GitHub Pages site is static. A hosted conference endpoint
+                  can be supplied at build time with PUBLIC_VERGE_APP_URL.
+                </p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <aside class="readiness-summary" aria-label="Onboarding progress">
+          <h2>Readiness</h2>
+          <ol class="progress-list">
+            <li id="progress-browser"><span class="progress-dot"></span>Browser</li>
+            <li id="progress-room"><span class="progress-dot"></span>Room</li>
+            <li id="progress-devices"><span class="progress-dot"></span>Devices</li>
+          </ol>
+          <p class="summary-note">
+            Device access is optional for reading the site. Verge requests
+            permissions again when you actually join a room.
+          </p>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="wordmark footer-wordmark" href="%BASE_URL%">
+          <span class="wordmark-mark" aria-hidden="true">V</span><span>Verge</span>
+        </a>
+        <p>Browser-first conferencing. Peer-to-peer by default, server-minimal by design.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/xtreemze/verge">Source</a>
+        <a href="https://github.com/xtreemze/verge/tree/main/docs">Architecture</a>
+        <a href="%BASE_URL%">Overview</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/onboarding-entry.ts"></script>
+  </body>
+</html>
