@@ -1082,3 +1082,32 @@ input:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Native same-origin page continuity. Unsupported browsers simply ignore it. */
+@view-transition {
+  navigation: auto;
+}
+
+.site-header .wordmark {
+  view-transition-name: verge-wordmark;
+}
+
+main {
+  view-transition-name: verge-main;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  button,
+  .button {
+    transition: none;
+  }
+
+  ::view-transition-group(*) {
+    animation-duration: 0.001ms;
+  }
+}
