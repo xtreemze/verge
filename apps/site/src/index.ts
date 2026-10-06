@@ -4,7 +4,7 @@ import {
   codecDisplayName,
 } from "@verge/webrtc/codec-policy";
 
-const LUUM_EMBED_URL = "https://xtreemze.github.io/timeline/embed/luum-embed.js";
+const PROJECT_SITE_KIT_URL = "https://xtreemze.github.io/timeline/project-site/xtreemze-project-site.js";
 
 function codecPolicyNote(mimeType: string): string {
   switch (mimeType.toLowerCase()) {
@@ -46,7 +46,7 @@ function renderCodecPolicy(): void {
   );
 }
 
-type LuumGraphElement = HTMLElement & {
+type ProjectGraphElement = HTMLElement & {
   nodes: readonly {
     id: string;
     label: string;
@@ -64,13 +64,13 @@ type LuumGraphElement = HTMLElement & {
 };
 
 async function upgradeArchitectureGraph(): Promise<void> {
-  const graph = document.querySelector<LuumGraphElement>("#verge-architecture-graph");
-  const fallback = document.querySelector<HTMLElement>("[data-luum-architecture-fallback]");
+  const graph = document.querySelector<ProjectGraphElement>("#verge-architecture-graph");
+  const fallback = document.querySelector<HTMLElement>("[data-project-architecture-fallback]");
   if (!graph || !fallback) return;
 
   try {
-    await import(/* @vite-ignore */ LUUM_EMBED_URL);
-    await customElements.whenDefined("luum-embed-graph");
+    await import(/* @vite-ignore */ PROJECT_SITE_KIT_URL);
+    await customElements.whenDefined("xt-project-graph");
 
     graph.nodes = [
       { id: "capture", label: "Capture", detail: "camera · microphone · display", color: "#9bc2ff", position: { x: 18, y: 50 } },
