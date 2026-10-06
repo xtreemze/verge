@@ -12,7 +12,19 @@ on:
       - "packages/webrtc/package.json"
       - "package.json"
       - "pnpm-workspace.yaml"
-      - "pnpm-lock.yaml"
+      - "tsconfig.base.json"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/site/**"
+      - "packages/media/**"
+      - "packages/protocol/**"
+      - "packages/webrtc/src/codec-policy.ts"
+      - "packages/webrtc/src/codecs.ts"
+      - "packages/webrtc/package.json"
+      - "package.json"
+      - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -23,7 +35,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages
+  group: verge-pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,18 +45,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Test, typecheck, build, and upload Astro site
-        uses: withastro/action@v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
         with:
-          path: ./apps/site
+          version: 12.8.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
           node-version: 24
-          package-manager: pnpm@12.8.0
-          build-cmd: pnpm run test && pnpm run typecheck && pnpm run build
+
+      - name: Install workspace
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Test site contract
+        run: pnpm --filter @verge/site test
+
+      - name: Typecheck site
+        run: pnpm --filter @verge/site typecheck
+
+      - name: Build Vite 8 site
         env:
-          SITE_URL: https://xtreemze.github.io
           BASE_PATH: /verge
+        run: pnpm --filter @verge/site build
+
+      - name: Verify Pages artifact
+        shell: bash
+        run: |
+          test -s apps/site/dist/index.html
+          test -s apps/site/dist/onboarding/index.html
+          grep -q 'Meet at the edge' apps/site/dist/index.html
+          grep -q 'Get ready for Verge' apps/site/dist/onboarding/index.html
+          if grep -R -E '(astro|esbuild)' apps/site/dist >/dev/null 2>&1; then
+            echo "Built presentation artifact contains retired Astro/esbuild references"
+            exit 1
+          fi
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/site/dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
