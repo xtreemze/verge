@@ -64,7 +64,7 @@ See `docs/deployment.md` for DNS, firewall, TURN, health-check, and release acce
 
 ## Landing and onboarding site
 
-The static landing and onboarding experience lives in `apps/site` and is built with Astro on Vite.
+The static landing and onboarding experience lives in `apps/site` and is built directly with Vite 8. The presentation site does not use Astro or esbuild.
 
 ```bash
 pnpm site:dev
