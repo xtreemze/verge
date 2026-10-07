@@ -16,3 +16,18 @@ export type {
   ConferenceTransportEvents
 } from "./transport";
 export { SignalingClient } from "./signaling";
+
+export {
+  CONFERENCE_PRESENTATION_COMMAND_EVENT,
+  CONFERENCE_PRESENTATION_ERROR_EVENT,
+  CONFERENCE_PRESENTATION_STATE_EVENT,
+  createConferenceProjectSiteAdapter
+} from "./presentation";
+export type {
+  ConferencePresentationCommand,
+  ConferencePresentationPeer,
+  ConferencePresentationSnapshot,
+  ConferencePresentationSource,
+  ConferenceProjectSiteAdapter,
+  ConferenceProjectSiteContext
+} from "./presentation";
