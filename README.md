@@ -71,6 +71,6 @@ pnpm site:dev
 pnpm site:build
 ```
 
-The GitHub Pages workflow publishes the site at `https://xtreemze.github.io/verge/`. It intentionally does not host the signaling service. If a separately deployed Verge web client should be launched from onboarding, provide `PUBLIC_VERGE_APP_URL` when building the site; otherwise onboarding links to the local development setup.
+The GitHub Pages workflow publishes the presentation site at `https://xtreemze.github.io/verge/` and the web conference client at `https://xtreemze.github.io/verge/app/`. The app's JavaScript and styles are hosted statically; GitHub Pages does **not** run WebSocket signaling, room invitation issuance, or TURN. Configure repository Actions variables `VERGE_SIGNALING_URL` (`wss://...`), `VERGE_ICE_CONFIG_URL` and `VERGE_ROOM_INVITE_URL` (secure HTTPS endpoints) before promising live hosted calls. These values become public build-time client configuration, so never put TURN secrets or signing keys in them. Deploy the signaling/control plane and TURN separately following `docs/deployment.md`. Without a working signaling URL, the deployed app is visible but rooms cannot connect.
 
 See `docs/architecture.md`, `docs/codec-policy.md`, and `docs/security.md` for design constraints.

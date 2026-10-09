@@ -35,6 +35,7 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="%BASE_URL%" aria-current="page">Overview</a>
         <a href="%BASE_URL%onboarding/">Onboarding</a>
+        <a href="%BASE_URL%app/">Conference</a>
         <a class="nav-github" href="https://github.com/xtreemze/verge">
           GitHub <span aria-hidden="true">↗</span>
         </a>
@@ -53,7 +54,8 @@
             credentials without moving conference media through the signaling plane.
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="%BASE_URL%onboarding/">Start onboarding</a>
+            <a class="button primary" href="%BASE_URL%app/">Open conference</a>
+            <a class="button ghost" href="%BASE_URL%onboarding/">Check browser</a>
             <a class="button ghost" href="https://github.com/xtreemze/verge">View source</a>
           </div>
           <ul class="hero-facts" aria-label="Verge highlights">
@@ -175,8 +177,8 @@
           <h2>Bring up a room from the repo.</h2>
           <p>
             The browser client and signaling service live in one pnpm workspace.
-            GitHub Pages hosts this static introduction and onboarding layer;
-            signaling remains a separate runtime service by design.
+            GitHub Pages hosts the introduction, onboarding, and web conference client.
+            Calls require an independently deployed secure signaling and TURN service.
           </p>
           <div class="command" aria-label="Development commands"><span>$</span><span>pnpm install&nbsp;&nbsp;&amp;&amp;&nbsp;&nbsp;pnpm dev</span></div>
           <div class="hero-actions">
