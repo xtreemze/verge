@@ -5,14 +5,15 @@ on:
     branches: [main]
     paths:
       - "apps/site/**"
+      - "apps/web/**"
+      - "packages/conference/**"
       - "packages/media/**"
       - "packages/protocol/**"
-      - "packages/webrtc/src/codec-policy.ts"
-      - "packages/webrtc/src/codecs.ts"
-      - "packages/webrtc/package.json"
+      - "packages/webrtc/**"
       - "package.json"
       - "pnpm-workspace.yaml"
       - "tsconfig.base.json"
+      - "docs/deployment.md"
       - ".github/workflows/pages.yml"
   pull_request:
     branches: [main]
@@ -64,10 +65,25 @@ jobs:
       - name: Typecheck site
         run: pnpm --filter @verge/site typecheck
 
+      - name: Typecheck conference client
+        run: pnpm --filter @verge/web typecheck
+
+      - name: Test conference client
+        run: pnpm --filter @verge/web test
+
       - name: Build Vite 8 site
         env:
           BASE_PATH: /verge
+          PUBLIC_VERGE_APP_URL: /verge/app/
         run: pnpm --filter @verge/site build
+
+      - name: Build conference client for Pages
+        env:
+          BASE_PATH: /verge/app/
+          VITE_SIGNALING_URL: ${{ vars.VERGE_SIGNALING_URL }}
+          VITE_ICE_CONFIG_URL: ${{ vars.VERGE_ICE_CONFIG_URL }}
+          VITE_ROOM_INVITE_URL: ${{ vars.VERGE_ROOM_INVITE_URL }}
+        run: pnpm --filter @verge/web build
 
       - name: Verify Pages artifact
         shell: bash
@@ -76,10 +92,18 @@ jobs:
           test -s apps/site/dist/onboarding/index.html
           grep -q 'Meet at the edge' apps/site/dist/index.html
           grep -q 'Get ready for Verge' apps/site/dist/onboarding/index.html
+          test -s apps/web/dist/index.html
+          grep -q '/verge/app/assets/' apps/web/dist/index.html
           if grep -R -E '(astro|esbuild)' apps/site/dist >/dev/null 2>&1; then
             echo "Built presentation artifact contains retired Astro/esbuild references"
             exit 1
           fi
+
+      - name: Include conference client in Pages artifact
+        run: |
+          mkdir -p apps/site/dist/app
+          cp -a apps/web/dist/. apps/site/dist/app/
+          test -s apps/site/dist/app/index.html
 
       - name: Configure Pages
         if: github.event_name != 'pull_request'
